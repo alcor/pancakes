@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title><?= toc.title ?></title>
+<base target="_top">
+<?!=HtmlService.createHtmlOutputFromFile('gs/css').getContent()?>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="edit edit_doc material-icons" onclick="editDoc()"></div>
+<div class="edit edit_toc material-icons" onclick="editToc()"></div>
+<div class="sidebar">
+
+<? 
+let body = toc.body
+let images = toc.inlineObjects
+let firstLink;
+
+for (let io in toc.inlineObjects) {
+  let obj = toc.inlineObjects[io]
+?>
+<img class="logo" src="<?=obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri ?>">
+<?
+}
+for (let c of toc.body.content) {
+  let p = c.paragraph
+  if (!p) continue;
+  let style = p.paragraphStyle.namedStyleType
+  for (let e of p.elements) {
+    let text = e.textRun?.content?.trim();
+    if (!text?.length) continue;
+    let link = e.textRun?.textStyle.link?.url;
+    let selected = false;
+    if (link) {
+      let match = link.match(/https:\/\/docs.google.com\/document\/d\/([^/]*)\/.*/)
+      let docid = match ? match[1] : undefined;
+      if (docid) link = "https://docs.google.com/document/d/" + docid + "/preview"
+      if (!firstLink) {
+        firstLink = link;
+        xselected = true;
+      } 
+      ?><a class="<?=selected ? "selected" : ""?>"href="<?=link?>" target="frame"><?=text?></a> <?
+    } else {
+      ?><div class="row <?=style?>"><?=text?></div><?
+    }
+  }
+}
+?>
+</div>
+<iframe class="content" id="frame" name="frame" src="<?=firstLink?>"></iframe>
+</body>
+<script>
+
+let lastLink = "<?=firstLink?>"
+document.onclick = function(e) {
+  let a = e.target.closest('a');
+  if (a) {
+    let link = a.href;
+    lastLink = link
+    console.log("Opened", lastLink);
+  }
+  console.log("click", e.target);
+}
+
+function editToc() {
+  let docid = "<?=toc.documentId?>";
+  let link = "https://docs.google.com/document/d/" + docid + "/edit"
+  document.getElementById('frame').src = link
+}
+function editDoc() {
+  console.log("last", lastLink);
+  let match = lastLink.match(/https:\/\/docs.google.com\/document\/d\/([^/]*)\/.*/)
+  let docid = match[1];
+  console.log(docid)
+  if (docid) {
+    let link = "https://docs.google.com/document/d/" + docid + "/edit"
+    document.getElementById('frame').src = link
+  }
+}
+
+let doc = <?!=JSON.stringify(toc)?>
+</script>
+
+</html>
