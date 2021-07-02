@@ -1,86 +1,524 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title><?= toc.title ?></title>
+<title></title>
 <base target="_top">
 <?!=HtmlService.createHtmlOutputFromFile('gs/css').getContent()?>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Bebas+Neue" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="edit edit_doc material-icons" onclick="editDoc()"></div>
-<div class="edit edit_toc material-icons" onclick="editToc()"></div>
-<div class="sidebar">
 
-<? 
-let body = toc.body
-let images = toc.inlineObjects
-let firstLink;
+<nav>
+  <div id="menu-button" class="menu-button" onclick="this.classList.toggle('open'); event.stopPropagation();">
+    <div class="material-icons">more_horiz</div>
+    <div class="menu-contents">
+      <div class="menu-item edit_doc" onclick="editDoc()">Edit Document</div>
+      <div class="menu-item edit_toc" onclick="editToc()">Edit Index</div>
+      <div class="menu-item edit_toc" onclick="fullscreen()">Fullscreen</div>
+    </div>
+  </div>
+  <div id="toc" class="toc-content"></div>
+</nav>
+<main id="doc" class="content"></main>
+<iframe id="doc-frame" class="content" name="frame" src=""></iframe>
+</body>
 
-for (let io in toc.inlineObjects) {
-  let obj = toc.inlineObjects[io]
-?>
-<img class="logo" src="<?=obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri ?>">
-<?
+<script>
+  const docsRE = /https:\/\/docs.google.com\/document\/d\/(?<id>[^\/]*)\/?(?<mode>[^\n#]*)(#heading=(?<heading>h.*))?/
+  const figmaRE = /^https:\/\/([^\/\.]+\.)?figma.com\/(?<mode>file|proto)\/(?<id>[0-9a-zA-Z]{22,128})(?:\/.*)?$/
+
+  let tocId = '<?= tocId ?>'
+  let docId = '<?= docId ?>';
+  let mode = <?= mode ?>;
+  let hash;
+
+  let tocData = <?!=JSON.stringify(tocData)?>;
+  let docData = <?!=JSON.stringify(docData)?>;
+
+  google.script.url.getLocation(function(location) {
+    tocId = location.parameter.toc;
+    hash = location.hash
+  });
+
+
+// Get data from spreadsheet
+function loadDocInline(doc, isToc = false, ignoreCache = false) {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (!ignoreCache) {
+    if (doc.id == docData.documentId) {
+      return renderContent(docData)
+    } 
+    
+    let cache = localStorage.getItem(doc.id)
+    if (cache) {
+      console.log("💾Rendering Cache", doc.id)
+      let data = JSON.parse(cache);
+      return renderContent(data, isToc)
+    } 
+  }
+
+  console.debug("⬇️Fetching:", doc.id)
+  document.body.classList.add("loading");
+  google.script.run.withSuccessHandler(gotData.bind(null, doc, isToc)).getData(doc.id, ignoreCache);
+
 }
-for (let c of toc.body.content) {
-  let p = c.paragraph
-  if (!p) continue;
-  let style = p.paragraphStyle.namedStyleType
-  for (let e of p.elements) {
-    let text = e.textRun?.content?.trim();
-    if (!text?.length) continue;
-    let link = e.textRun?.textStyle.link?.url;
-    let selected = false;
-    if (link) {
-      let match = link.match(/https:\/\/docs.google.com\/document\/d\/([^/]*)\/.*/)
-      let docid = match ? match[1] : undefined;
-      if (docid) link = "https://docs.google.com/document/d/" + docid + "/preview"
-      if (!firstLink) {
-        firstLink = link;
-        xselected = true;
-      } 
-      ?><a class="<?=selected ? "selected" : ""?>"href="<?=link?>" target="frame"><?=text?></a> <?
-    } else {
-      ?><div class="row <?=style?>"><?=text?></div><?
+
+// Parse data
+function gotData(doc, isToc, response) {
+  if (!isToc) localStorage.setItem(doc.id, response);
+  let data = JSON.parse(response)
+  renderContent(data, isToc)
+  document.body.classList.remove("loading");
+}
+
+
+// Utility Functions
+
+
+// Core create-element function
+var m = function createElement(type, attrs, ...children) {
+  var types = type.split(".")
+  var node = document.createElement(types.shift());
+
+  for (var prop in attrs) {
+    if (!attrs.hasOwnProperty(prop)) continue;
+    if (attrs[prop] != undefined) node[prop] = attrs[prop];
+  }
+
+  for (let type of types) node.classList.add(type);
+  
+  function append(child) {
+    if (Array.isArray(child)) return child.forEach(append); 
+    if (typeof child == 'string') child = document.createTextNode(child);
+    if (child) node.appendChild(child);
+  }
+  
+  children.forEach(append);
+  return node;
+}
+
+
+
+
+const TYPE_TO_SELECTOR = {
+  TITLE: 'div.title',
+  SUBTITLE: 'div.subtitle',
+  NORMAL_TEXT: 'p'
+}
+
+function typeToSelector(type) {
+  return TYPE_TO_SELECTOR[type] ||  (type.charAt(0) + type.charAt(type.length-1))
+}
+
+function colorForObject(rgb) {
+  if (rgb) return `rgb(${rgb.red * 255},${rgb.green * 255},${rgb.blue * 255})`;
+}
+
+// CSS Creation
+
+function cssForDoc(doc) {
+  let css = []
+  for (let info of doc.namedStyles?.styles) {
+    let type = info.namedStyleType;
+    let selector = typeToSelector(type);
+    
+    let declarations = [];
+    if (info.textStyle.fontSize) {
+      declarations.push(`font-size:${info.textStyle.fontSize.magnitude}${info.textStyle.fontSize.unit};`);
+    }
+    if (info.textStyle.weightedFontFamily?.fontFamily) {
+      declarations.push(`font-family:${info.textStyle.weightedFontFamily.fontFamily}, system-ui, sans-serif;`);
+    }
+    if (info.textStyle.weightedFontFamily?.weight) {
+      declarations.push(`font-weight:${info.textStyle.weightedFontFamily.weight};`);
+    }
+    if (info.textStyle.foregroundColor) {
+      declarations.push(`color:${colorForObject(info.textStyle.foregroundColor.color.rgbColor)};`);
+    }
+    if (info.textStyle.bold) {
+      declarations.push(`font-weight:bold;`);
+    }
+    if (declarations.length) {
+      css.push(`main ${selector}{${declarations.join("")}}`);
     }
   }
+  return css.join("");
 }
-?>
-</div>
-<iframe class="content" id="frame" name="frame" src="<?=firstLink?>"></iframe>
-</body>
-<script>
 
-let lastLink = "<?=firstLink?>"
-document.onclick = function(e) {
+
+// Element Creation 
+
+function elementForParagraph(p, doc) {
+    if (!p) return null;
+    let selector = typeToSelector(p.paragraphStyle.namedStyleType); 
+
+    let attrs = {}
+    if (p.bullet && !doc.isToc) {
+      selector = 'p.li';
+      let level = p.bullet.nestingLevel || 0;
+      selector += ".bullet-" + level;
+    };
+    if (p.table) console.log("p.table", p.table)
+
+    let style = p.paragraphStyle;
+
+    if (style.shading && !doc.isToc) {
+      let color = colorForObject(style.shading?.backgroundColor?.color?.rgbColor);
+      if (color && color != "rgb(255,255,255)") attrs.style = "background-color:" + color +"; padding: 1em; ";
+    }
+
+    if (p.paragraphStyle?.headingId) attrs.id = p.paragraphStyle.headingId;
+
+    return m(selector, attrs, 
+      p.positionedObjectIds?.map(o => elementForObject(doc.positionedObjects[o])),
+      p.elements?.map(e => elementForElement(e, doc))
+    )
+}
+
+function elementForElement(e, doc) {
+  if (e.inlineObjectElement) {
+    return elementForObject(doc.inlineObjects[e.inlineObjectElement.inlineObjectId]);
+  }
+  
+  let text = e.textRun?.content
+  if (!text) {
+    return null;
+  }
+  let el = text;
+  let params = {}
+  let runStyle = e.textRun?.textStyle
+  if (!doc.isToc) {
+    if (runStyle.underline) el = m('u',{}, el);
+    if (runStyle.italic) el = m('i',{}, el);
+    if (runStyle.bold) el = m('b',{}, el);
+    if (runStyle.strikethrough) el = m('strike',{}, el);
+    if (runStyle.baselineOffset == "SUPERSCRIPT") el = m('sub',{}, el) ;
+    if (runStyle.baselineOffset == "SUBSCRIPT") el = m('sup',{}, el) ;
+    if (runStyle.foregroundColor) el = m('span', {style:"color:" + colorForObject(runStyle.foregroundColor.color.rgbColor)}, el);
+  } else {
+    el = el.trim();
+  }
+  
+  if (runStyle.link) {
+    let url = runStyle.link.url
+    if (url) {
+      let id = idForUrl(url)
+      let external = !urlIsEmbeddable(url);
+      el = m('a' + (external ? ".external-link" : ".embedded-link"), {id, href:url }, el);
+    } else {
+      el = m('a.heading-link', {href: "#" + runStyle.link.headingId }, el);
+    }
+  }
+  return el;
+}
+
+
+function elementForObject(info) {
+  info = info.positionedObjectProperties || info.inlineObjectProperties;
+  if (!info) return;
+  console.debug("EMBEDD", info)
+
+  let object = info.embeddedObject
+  let styles = [];
+  let position = info.positioning;
+  if (pos = info.positioning) {
+    if (pos.layout == "WRAP_TEXT") {
+      styles.push(`float:right`);
+    } else if (pos.layout == "BREAK_LEFT_RIGHT") {
+      styles.push(`display:block`);
+    } else {
+      if (pos.layout == "IN_FRONT_OF_TEXT") styles.push(`position:absolute; z-index:1;`);
+      if (pos.layout == "BEHIND_TEXT") styles.push(`position:absolute; z-index:-1`);
+      if (pos.leftOffset) styles.push(`margin-left:${pos.leftOffset?.magnitude}px;`);
+      if (pos.topOffset) styles.push(`margin-top:${pos.topOffset?.magnitude}px;`);
+    }
+  } else {
+    styles.push(`display:inline-block`);
+  }
+
+  let w = object.size.width.magnitude;
+  let h = object.size.height.magnitude;
+
+  // TODO: This is incorrect because offsets should be based on the original image width, which the API does not provide.
+  // https://developers.google.com/docs/api/reference/rest/v1/CropProperties
+
+  let crop = object.imageProperties.cropProperties;
+  let t = 0 - (crop.offsetTop || 0);
+  let l = 0 - (crop.offsetLeft || 0);
+  let r = 1 + (crop.offsetRight || 0);
+  let b = 1 + (crop.offsetBottom || 0);
+
+  styles.push(`width:${w}px`)
+  styles.push(`height:${h}px`)
+  styles.push(`background-position:${l * w}px ${t * h}px`)  
+  styles.push(`background-size:${(r - l) * w}px ${(b - t) * h}px`)  
+  console.log(styles.join("\n"), crop)
+  styles.push(`background-image:url(${object.imageProperties?.contentUri})`)  
+
+  return m('div.img', {style:styles.join(";")})
+}
+
+
+function elementForTable(table, doc) {
+  let rows = table.tableRows.map(tr => {
+    let cells = tr.tableCells.map(td => {
+      let style = td.tableCellStyle;
+      let attrs = {
+        colSpan: style.columnSpan,
+        rowSpan: style.rowSpan,
+      }
+      if (style.backgroundColor?.color) attrs.style = "background-color:" + colorForObject(style.backgroundColor?.color?.rgbColor);
+
+      let paragraphEls = td.content.map(c => elementForParagraph(c.paragraph, doc));
+      return m('td',attrs, paragraphEls)
+    })
+    return m('tr', {}, cells);
+  })
+  return m('table', {}, rows);
+}
+
+function expandDocUrl(url) {
+  if (!url.startsWith("http")) {
+    url = urlForDocInfo({id:url}, true)
+  }
+  return url;
+}
+
+function renderContent(doc, isToc) {
+  // Create elements for document content
+  let body = doc.body
+  let docType = isToc ? 'toc' : 'doc';
+  console.log("📐Rendering", docType, [doc.documentId, doc])
+  
+  if (isToc) doc.isToc = true;
+
+  
+  let children = [];
+  let rootEl = m('div.' + docType + '-inner', {})
+  let headingStack = [];
+  let currentHeader;
+
+  for (let c of doc.body.content) {
+    let el;
+    if (c.paragraph) {      
+      el = elementForParagraph(c.paragraph, doc);
+    } else if (c.table) {
+      el = elementForTable(c.table, doc);
+    }
+
+    let headingId = c.paragraph?.paragraphStyle?.headingId
+    let depth = parseInt(c.paragraph?.paragraphStyle?.namedStyleType?.slice(-1));
+
+    if (headingId) {
+      let index = headingStack.findIndex(h => h.depth >= depth );
+      if (index != -1) headingStack.splice(index);
+    }
+
+    let parent = headingStack.length ? headingStack[headingStack.length - 1].el : rootEl;
+    if (el) parent.appendChild(el)
+
+    if (headingId && depth) {
+      let headingChildren = m('div.children', {depth:depth, id:headingId + "-children"});    
+      parent.appendChild(headingChildren);
+      headingStack.push({depth: depth, el: headingChildren})
+    }
+
+  }
+
+  let docEl = document.getElementById(docType);
+  while (docEl.firstChild) docEl.removeChild(docEl.lastChild);
+
+
+  // Create CSS rules for document styles
+  let css = isToc ? undefined : cssForDoc(doc)
+  if (css && css.length) {
+      rootEl.appendChild(m('style', {type:'text/css'}, css))
+  }
+
+  docEl.appendChild(rootEl)
+
+
+  if (isToc) {
+    let url;
+    if (docId.length) {
+      url = expandDocUrl(docId)
+    } else {
+      let links = docEl.querySelectorAll("a[href]");
+      for (let link of links) {
+        if (urlIsEmbeddable(link.href)) {
+          link.classList.add('selected');
+          url = link.href
+          break;
+        }
+      }
+    
+    }
+    
+    if (url) displayDoc(url);
+  } else {
+    google.script.url.getLocation(function(location) {
+      hash = location.hash
+      if (hash.length) {
+        console.log("Scrolling to", hash)
+      scrollToHeader(hash)
+      }
+    });
+  }
+}
+
+function scrollToHeader(hash) {
+  if (!hash || !hash.length) return;
+  let el = document.getElementById(hash);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'start'});
+  //TODO: https://stackoverflow.com/questions/48634459/scrollintoview-block-vs-inline/48635751#48635751
+}
+
+
+
+function docInfoForUrl(url) {
+  let match = url.match(docsRE)
+  return match?.groups;
+}
+
+function idForUrl(url) {
+  return url ? docInfoForUrl(url)?.id || url : undefined;
+}
+
+function urlForDocInfo(doc) {
+  let url = "https://docs.google.com/document/d/"
+  url += doc.id + "/" + doc.mode;
+  if (doc.header) url += "#header=" + doc.header;
+  return url;
+  //return `https://docs.google.com/document/d/${doc.id}/${doc.mode}` //|| ''}` + ${doc.header ? '#header=' + header : ''}
+}
+
+function createNewToc() {
+  let link = prompt("Paste a url for a Google Doc to use as a Table of Contents")
+  let docInfo = docInfoForUrl(link)
+  if (docInfo.id) {
+    debugger
+    google.script.history.push(null, {toc:docInfo.id});
+    tocId = docInfo.id;
+  }
+}
+
+document.addEventListener('click', function(e) {
+  document.getElementById('menu-button').classList.remove('open');
   let a = e.target.closest('a');
   if (a) {
-    let link = a.href;
-    lastLink = link
-    console.log("Opened", lastLink);
+    let url = a.getAttribute('href');
+    if (url) {
+      displayDoc(url, e.altKey, true, e.shiftKey)
+    }
+    console.log("event", a, a.href, url, e)
+    e.preventDefault();
+    // e.stopPropogation();
+    return false;
+  } else {
+    if (e.target.id) {
+      document.getElementById(e.target.id + "-children").classList.toggle('collapsed')
+    }
+
   }
-  console.log("click", e.target);
-}
+})
 
 function editToc() {
-  let docid = "<?=toc.documentId?>";
-  let link = "https://docs.google.com/document/d/" + docid + "/edit"
-  document.getElementById('frame').src = link
+  displayDoc("https://docs.google.com/document/d/" + tocId + "/edit", true)
 }
+
 function editDoc() {
-  console.log("last", lastLink);
-  let match = lastLink.match(/https:\/\/docs.google.com\/document\/d\/([^/]*)\/.*/)
-  let docid = match[1];
-  console.log(docid)
-  if (docid) {
-    let link = "https://docs.google.com/document/d/" + docid + "/edit"
-    document.getElementById('frame').src = link
+  let url = docId;
+  if (!url.startsWith("http")) url = urlForDocInfo({id:docId}, true)
+  displayDoc(url, true)
+}
+
+function fullscreen() {
+
+  let el = document.getElementById('doc-frame');
+  el.requestFullscreen();
+}
+
+function updateTocSelection(url) {
+  let id = idForUrl(url); 
+  docId = id;
+
+  let links = document.querySelectorAll("nav a")
+  for (let link of links) {
+    link.classList.toggle('selected', link.id == id)
   }
 }
 
-let doc = <?!=JSON.stringify(toc)?>
-</script>
+function urlIsEmbeddable(url) {
+  if (url.indexOf('docs.google.com') > 0) return true;
+  if (url.indexOf('figma.com') > 0) return true;
+  return false;
+}
 
+
+function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = false) {
+  let useFrame = true
+
+  console.debug("Opening", url)
+  if (url.startsWith("#")) {
+    return scrollToHeader(url.slice(1))
+  }
+
+  let embeddable = urlIsEmbeddable(url);
+  if (embeddable) {
+    updateTocSelection(url, updateHistory);
+    if (updateHistory) {
+      google.script.history.push({'timestamp': new Date().getTime(), doc:docId}, {toc:tocId, doc:docId, mode});
+    }
+  } else {
+    window.open(url, '_blank');
+    return;
+  }
+
+  let googleDoc = docInfoForUrl(url);  
+  if (googleDoc) {
+    if (mode == 'edit') editMode = true;
+    if (editMode) {
+      googleDoc.mode = 'edit';
+      url = urlForDocInfo(googleDoc)
+    } 
+    useFrame = editMode;
+  } else {
+    let match = url.match(figmaRE)
+    if (match) {
+      console.debug("🎨Embedding Figma file", url, match)
+      url = "https://www.figma.com/embed?embed_host=astra&url=" + url; 
+    }
+  }
+
+  document.body.classList.toggle('frame', useFrame);
+
+  if (useFrame && embeddable) {
+    console.debug("🌐Framing:", url)
+    document.getElementById('doc-frame').src = url;
+  } else {
+    loadDocInline(googleDoc, false, ignoreCache);
+  }
+  
+}
+
+
+google.script.history.setChangeHandler(function (e) {
+  let state = e.state;
+  console.debug("🕘State Changed", state.doc, [e.state, e.parameter, e.location.hash]);
+  displayDoc(expandDocUrl(state.doc))
+});
+
+if (!tocId.length) {
+  createNewToc();
+  loadDocInline({id: tocId}, true)
+} else {
+  renderContent(tocData, true)
+}
+
+</script>
 </html>

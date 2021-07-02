@@ -1,81 +1,296 @@
 <style>
 
   body {
-    display:flex;
     margin:0;
-    font-family:"Roboto", system-ui;
-    background-color:#fafafa;
-    font-size:14px;
-    --padding-left:32px;
+    font-family: "Roboto", system-ui;
+    background-color: white;
+    font-size: 14px;
+    --padding-left: 32px;
+    --sidebar-width: 240px;
   }
   
-  .sidebar {
-    width:240px;
+  body.loading #doc {
+    opacity:0.0;
+    transition:opacity 2s cubic-bezier(0,1,0,1);
+  }
+  
+  body.loading::before {
+    content:'';
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      font-size: 10px;
+      position: absolute;
+      left: calc(50vw + var(--sidebar-width) / 2);
+      top: 32px;
+      margin-left:-12px;
+      z-index:100;
+      border-top: 2px solid rgba(0,0,0, 0.0);
+      border-right: 2px solid rgba(0,0,0, 0.0);
+      border-bottom: 2px solid rgba(0,0,0, 0.0);
+      border-left: 2px solid #000000;
+      -webkit-transform: translateZ(0);
+      -ms-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-animation: load8 1.1s infinite linear;
+      animation: load8 1.1s infinite linear;
+  }
+  
+  
+  
+  @keyframes load8 {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+  }
+  
+  nav {
+    width:var(--sidebar-width);
     height:100vh;
-    overflow:hidden;
+    overflow-y:scroll;
+    overflow-x:hidden;
     background:#fefefe;
     padding:var(--padding-left) 0;
     box-sizing:border-box;
     box-shadow:0 3px 3px 1px rgba(60,64,67,.15);
-    position:sticky;
+    position:fixed;
     z-index:10;
+    flex-basis:240px;
+    flex:0 0 auto;
+  user-select:none;
+  }
+  
+  main {
+  }
+  
+  main h1,
+  main h2,
+  main h3 {
+    margin-top:2em;
   }
   
   img {
-  margin-left:var(--padding-left);
-  width:64px;
-  height:64px;
+    max-width:100%;
   }
+  
+  nav img {
+    max-width:100%;
+  }
+  
+  main img {
+    margin:0.5em 1em 1em 1em;
+  }
+  
+  .img {
+    background-repeat: no-repeat;
+    margin-right: 3px;
+  }
+  
   .header {
     height:104px;
   }
   
-  iframe.content {
-    flex: 1 0 auto;
-    height:100vh;
-    border:none;
-    background-color:#fafafa;
+  p, li {
+    line-height:150%;
+    max-width: 42em;
   }
   
-  a, .row {
+  li {
+    margin-bottom:12px;
+  }
+  
+  .li {
+    margin-block-start:0.5em;;
+    margin-block-end:0.5em;;
+  }
+  
+  .li:before {
+    content:'•';
+    display:inline-block;
+    float:left;
+    margin-left:-1.5em;
+    opacity:0.75;
+  }
+  
+  .bullet-0 {
+    padding-left:2em;
+  }
+  .bullet-1 {
+    padding-left:4em;
+  }
+  .bullet-2 {
+    padding-left:6em;
+  }
+  
+  li::marker {
+    margin-left: 1em;
+  }
+  iframe#doc-frame {
+    border:none;
+    background-color:#fafafa;
+    height:100vh;
+  }
+  .children {
+    /* border:2px solid red; */
+    /* padding:2px; */
+  }
+  .children.collapsed {
+    max-height:0;
+    overflow:hidden;
+  }
+  
+  .children .children {
+      border-color: green;
+  }
+  
+  .children .children {
+      border-color: blue;
+  }
+  
+  body.frame #doc,
+  body:not(.frame) iframe#doc-frame {
+    display:none;
+  }
+  
+  .content {
+    position:absolute;
+    left:var(--sidebar-width);
+    top:0;
+    width:calc(100vw - var(--sidebar-width));
+    
+  }
+  
+  nav .toc-inner p,
+  nav .toc-inner .title,
+  nav .toc-inner .subtitle,
+  nav .toc-inner h1,
+  nav .toc-inner h2,
+  nav .toc-inner h3,
+  nav .toc-inner h4,
+  nav .toc-inner h5,
+  nav .toc-inner h6,
+  nav .toc-inner a {
     display:block;
     text-decoration:none;
-    padding: 8px 24px 8px var(--padding-left);
-    color:black;
+    padding: 4px 24px 4px var(--padding-left);
     cursor:default;
   }
   
-  a:hover, .selected {
+  
+  nav .toc-inner p > a {
+    margin: 0 -24px 0 -32px;
+  }
+  
+  nav a {
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+  }
+  nav a:hover {
+    background-color:rgba(0,0,0,0.03);
+  }
+  
+  nav a.selected,
+  nav a.selected:hover {
     background-color:rgba(0,0,0,0.1);
   }
   
-  .TITLE { font-size: 18px; margin-bottom:8px;}
-  .HEADING_1 { font-size: 14px; margin-top:12px; font-weight:700;}
-  .HEADING_2 { margin-top:12px; text-transform:uppercase; letter-spacing: 0.02em; opacity:0.4; font-weight:700;}
   
-  .edit:before {
-    content:'edit';
+  nav .toc-inner a.external-link,
+  a.external-link {
+    cursor:alias;
   }
-  .edit {
+  
+  main a,
+  main u {
+    text-decoration:none;
+  }
+  main a:hover {
+    text-decoration-line: underline;
+    text-decoration-style: solid;
+  }
+  
+  main a.heading-link:hover {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+  }
+  
+  .doc-inner {
+      padding:2em;
+      width: 45em;
+      margin: auto;
+  }
+  
+  main .title { font-size: 28px; margin-bottom:8px;}
+  main .subtitle { font-size: 12px; margin-bottom:8px; margin-top:-8px;}
+  main table {
+    width:100%;
+  }
+  nav .title {font-size: 18px}
+  nav h1 { font-size: 14px; margin:12px 0 0 0; font-weight:bold;}
+  nav h2 { font-size: 14px; margin:12px 0 0 0; text-transform:uppercase; letter-spacing: 0.02em; opacity:0.4; font-weight:bold;}
+  
+  nav p {
+    margin: 0;
+    color:rgba(0,0,0,.54);
+  }
+  nav p a {
+    color:black;
+  }
+  
+  
+  
+  div.menu-button {
     width:24px; height:24px;
-    padding:12px;
-    display:block !important;
+    top:0;
+    left:0;
+    float:right;
+    padding:8px;
+    display:inline-block;
     color:rgba(0,0,0,0.4);
-    position:fixed;
     z-index:20;
+    background-color:white;
+    border-radius:0px;
+    position:relative;
+    margin-top:-32px;
+    cursor:default;
   }
   
-  .edit:hover {
-  
-    color:rgba(0,0,0,0.8);
+  div.menu-button .material-icons:hover,
+  div.menu-button.open .material-icons {
+    background-color: rgba(0,0,0,0.1);
   }
   
-  .edit_doc {
-    bottom:0; right:0;
+  .menu-contents {
+    float:right;
+    padding: 8px 0;
+    margin-top:-2px;
+    box-shadow: 0 10px 20px rgb(0 0 0 / 8%), 0 0.5px 1px 0.5px rgb(0 0 0 / 26%);
+    border-radius: 4px;
+    min-width: 100px;
+    background-color:white;
+    display:none;
   }
-  .edit_toc {
-    bottom:0;
-    left:188px;
+  
+  .menu-item {
+    cursor:default;
+    padding: 8px 24px;
+    white-space:nowrap;
+    color:black;
   }
+  
+  .menu-item:hover {
+    background-color:#fafafa
+  }
+  .menu-button.open .menu-contents {
+    display:block;
+  }
+  
   </style>
   
