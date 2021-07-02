@@ -28,16 +28,30 @@
 </body>
 
 <script>
-  const docsRE = /https:\/\/docs.google.com\/document\/d\/(?<id>[^\/]*)\/?(?<mode>[^\n#]*)(#heading=(?<heading>h.*))?/
+
+  const URL_REWRITES = [
+    { name: "Figma",
+      re: /^https:\/\/([^\/\.]+\.)?figma.com\/(?<mode>file|proto)\/(?<id>[0-9a-zA-Z]{22,128})(?:\/.*)?$/,
+      sub: "https://www.figma.com/embed?embed_host=astra&url=$&"},
+    { name: "YouTube",
+      re: /https:\/\/(youtu.be|www.youtube.com)\/(watch\?v=)?(?<id>\w+)([?&](?<params>t=.*)?)?/,
+      sub: "https://www.youtube.com/embed/$<id>?autoplay=1&$<params>"}
+  ]
+
+  const docsRE = /https:\/\/docs.google.com\/(?<type>document|spreadsheets|presentation)\/d\/(?<id>[^\/]*)\/?(?<mode>[^\n#]*)(#(?<hash>.*))?/
   const figmaRE = /^https:\/\/([^\/\.]+\.)?figma.com\/(?<mode>file|proto)\/(?<id>[0-9a-zA-Z]{22,128})(?:\/.*)?$/
 
   let tocId = '<?= tocId ?>'
   let docId = '<?= docId ?>';
-  let mode = <?= mode ?>;
+  let globalMode = <?= mode ?>;
   let hash;
 
   let tocData = <?!=JSON.stringify(tocData)?>;
   let docData = <?!=JSON.stringify(docData)?>;
+
+  if (docData && docData != {}) {
+    localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:docData}));
+  }
 
   google.script.url.getLocation(function(location) {
     tocId = location.parameter.toc;
@@ -45,35 +59,46 @@
   });
 
 
-// Get data from spreadsheet
 function loadDocInline(doc, isToc = false, ignoreCache = false) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
+  let hasOldData = false;
   if (!ignoreCache) {
-    if (doc.id == docData.documentId) {
-      return renderContent(docData)
+    if (docData && doc.id == docData.documentId) {
+      console.log("💾 Rendering Doc Data", doc.id)
+      renderContent(docData);
+      docData = undefined;
+      return;
     } 
     
     let cache = localStorage.getItem(doc.id)
     if (cache) {
-      console.log("💾Rendering Cache", doc.id)
+      console.log("💾 Rendering Cache", doc.id)
       let data = JSON.parse(cache);
-      return renderContent(data, isToc)
-    } 
+
+      if (data.ts) {
+        renderContent(data.val, isToc);
+        if (new Date().getTime() - data.ts < 25 * 60 * 1000) {
+          return;
+        }
+        hasOldData = true;
+      } 
+    }
   }
 
-  console.debug("⬇️Fetching:", doc.id)
-  document.body.classList.add("loading");
+  console.debug("⬇️ Fetching:", doc.id)
+  document.body.classList.add(hasOldData ? "outofdate" :"loading");
   google.script.run.withSuccessHandler(gotData.bind(null, doc, isToc)).getData(doc.id, ignoreCache);
 
 }
 
 // Parse data
 function gotData(doc, isToc, response) {
-  if (!isToc) localStorage.setItem(doc.id, response);
   let data = JSON.parse(response)
   renderContent(data, isToc)
   document.body.classList.remove("loading");
+  document.body.classList.remove("outofdate");
+  if (!isToc) localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:data}));
 }
 
 
@@ -221,7 +246,6 @@ function elementForElement(e, doc) {
 function elementForObject(info) {
   info = info.positionedObjectProperties || info.inlineObjectProperties;
   if (!info) return;
-  console.debug("EMBEDD", info)
 
   let object = info.embeddedObject
   let styles = [];
@@ -257,7 +281,7 @@ function elementForObject(info) {
   styles.push(`height:${h}px`)
   styles.push(`background-position:${l * w}px ${t * h}px`)  
   styles.push(`background-size:${(r - l) * w}px ${(b - t) * h}px`)  
-  console.log(styles.join("\n"), crop)
+  //console.log(styles.join("\n"), crop)
   styles.push(`background-image:url(${object.imageProperties?.contentUri})`)  
 
   return m('div.img', {style:styles.join(";")})
@@ -365,7 +389,7 @@ function renderContent(doc, isToc) {
       hash = location.hash
       if (hash.length) {
         console.log("Scrolling to", hash)
-      scrollToHeader(hash)
+        scrollToHeader(hash)
       }
     });
   }
@@ -386,13 +410,17 @@ function docInfoForUrl(url) {
 }
 
 function idForUrl(url) {
-  return url ? docInfoForUrl(url)?.id || url : undefined;
+  if (url) {
+    let info = docInfoForUrl(url);
+    if (info && info.type == 'document' && info.mode != 'preview') return info.id;
+  }
+  return url;
 }
 
 function urlForDocInfo(doc) {
-  let url = "https://docs.google.com/document/d/"
-  url += doc.id + "/" + doc.mode;
-  if (doc.header) url += "#header=" + doc.header;
+  let url = "https://docs.google.com/" + (doc.type || 'document') + "/d/";
+  url += doc.id + "/" + (doc.mode || 'edit');
+  if (doc.hash) url += "#" + doc.hash;
   return url;
   //return `https://docs.google.com/document/d/${doc.id}/${doc.mode}` //|| ''}` + ${doc.header ? '#header=' + header : ''}
 }
@@ -415,7 +443,6 @@ document.addEventListener('click', function(e) {
     if (url) {
       displayDoc(url, e.altKey, true, e.shiftKey)
     }
-    console.log("event", a, a.href, url, e)
     e.preventDefault();
     // e.stopPropogation();
     return false;
@@ -455,55 +482,67 @@ function updateTocSelection(url) {
 
 function urlIsEmbeddable(url) {
   if (url.indexOf('docs.google.com') > 0) return true;
-  if (url.indexOf('figma.com') > 0) return true;
+  for (let rewrite of URL_REWRITES) {
+    if (url.match(rewrite.re)) return true;
+  }
   return false;
 }
 
 
 function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = false) {
-  let useFrame = true
+  console.debug("🖼 Displaying", url)
 
-  console.debug("Opening", url)
-  if (url.startsWith("#")) {
-    return scrollToHeader(url.slice(1))
-  }
+  if (url.startsWith("#")) return scrollToHeader(url.slice(1))
 
-  let embeddable = urlIsEmbeddable(url);
-  if (embeddable) {
-    updateTocSelection(url, updateHistory);
-    if (updateHistory) {
-      google.script.history.push({'timestamp': new Date().getTime(), doc:docId}, {toc:tocId, doc:docId, mode});
-    }
-  } else {
-    window.open(url, '_blank');
-    return;
-  }
-
+  let target = 'frame';
   let googleDoc = docInfoForUrl(url);  
+
   if (googleDoc) {
-    if (mode == 'edit') editMode = true;
+    if (globalMode == 'edit') editMode = true;
     if (editMode) {
       googleDoc.mode = 'edit';
-      url = urlForDocInfo(googleDoc)
-    } 
-    useFrame = editMode;
+    } else if (googleDoc.type == "document" && googleDoc.mode != "preview") {
+      target = 'inline';
+    } else {
+      googleDoc.mode = 'preview';
+    }
+    url = urlForDocInfo(googleDoc)
   } else {
-    let match = url.match(figmaRE)
-    if (match) {
-      console.debug("🎨Embedding Figma file", url, match)
-      url = "https://www.figma.com/embed?embed_host=astra&url=" + url; 
+    let rewrite = rewriteUrl(url);
+    if (rewrite) {
+      url = rewrite;
+    } else {
+      target = 'blank';
     }
   }
 
-  document.body.classList.toggle('frame', useFrame);
-
-  if (useFrame && embeddable) {
-    console.debug("🌐Framing:", url)
-    document.getElementById('doc-frame').src = url;
+  if (target == 'blank') {
+      console.debug("🌐 Opening Tab:", url)
+      window.open(url, '_blank');
   } else {
-    loadDocInline(googleDoc, false, ignoreCache);
+    let frame = document.getElementById('doc-frame');
+    if (target == 'inline') {
+      loadDocInline(googleDoc, false, ignoreCache);
+      document.body.classList.remove('frame');
+      frame.src = 'about:blank';
+    } else if (target == 'frame') {
+      console.debug("🌐 Framing:", url)
+      frame.src = url;
+      document.body.classList.add('frame');
+    }
+    updateTocSelection(url, updateHistory);
+    if (updateHistory) google.script.history.push({'timestamp': new Date().getTime(), doc:docId}, {toc:tocId, doc:docId, mode:globalMode});
   }
-  
+}
+
+function rewriteUrl(url) {
+  for (let rewrite of URL_REWRITES) {
+    console.log("rplace", url.replace(rewrite.re, rewrite.sub))
+    let match =  url.match(rewrite.re)
+    if (match) {
+      return url.replace(rewrite.re, rewrite.sub)
+    }
+  }
 }
 
 

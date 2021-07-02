@@ -22,8 +22,10 @@ function doGet(e) {
   } 
   
   if (parameters.doc) {
-    var doc = parameters.doc && !parameters.doc.startsWith("http") ? JSON.parse(getData(parameters.doc)) : undefined
-    template.docId = parameters.doc || '';
+    if (!parameters.doc.startsWith("http")) {
+    template.docData = JSON.parse(getData(parameters.doc))
+    }
+    template.docId = parameters.doc;
   }
 
   return template.evaluate()
