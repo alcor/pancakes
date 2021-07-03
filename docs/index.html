@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body style="margin:0;">
+  <iframe id="frame" src="" frameborder="0" style="width:100vw; height:100vh;"></iframe>
+  <script>
+    let frame = document.getElementById('frame');
+    let domain = undefined
+    let script = 'AKfycbyKPLXvzW8tb_pIo0hnLDwVJddxT2VDJhjnVzuIwQcRk7S_17Bf1YVvmEkW_WxElSh3'
+    let url = `https://script.google.com/${domain ? 'a/macros/' + domain : 'macros'}/s/${script}/exec`
+    frame.src = url;
+  </script>
+</body>
+</html>
