@@ -5,21 +5,19 @@ function doGet(e) {
   let favmoji;
 
   template.mode = parameters.mode || 'view';  
-  template.tocId = '';
+  template.tocId = parameters.toc || '1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g';
   template.docId = '';
   template.tocData = {};
   template.docData = {}
 
-  if (parameters.toc) { 
-    template.tocId = parameters.toc;
-    template.tocData = JSON.parse(getData(parameters.toc, true))
-    template.title = template.tocData.title;
+  template.tocData = JSON.parse(getData(template.tocId, true))
+  template.title = template.tocData.title;
 
-    if (template.tocData?.inlineObjects) {
-      let obj = template.tocData.inlineObjects ? Object.values(template.tocData.inlineObjects).pop() : undefined;
-      template.favicon = obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri + "?.png";
-    }
-  } 
+  if (template.tocData?.inlineObjects) {
+    let obj = template.tocData.inlineObjects ? Object.values(template.tocData.inlineObjects).pop() : undefined;
+    template.favicon = obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri + "?.png";
+  }
+  
   
   if (parameters.doc) {
     if (!parameters.doc.startsWith("http")) {
@@ -53,7 +51,13 @@ function getData(docId, ignoreCache) {
   }
 
   // Logger.log("Fetching Doc " + docId  + " " + (new Date().getTime() - start))   
-  var doc = Docs.Documents.get(docId, {suggestionsViewMode: 'PREVIEW_WITHOUT_SUGGESTIONS'});
+
+  try { 
+    var doc = Docs.Documents.get(docId, {suggestionsViewMode: 'PREVIEW_WITHOUT_SUGGESTIONS'});
+  } catch (e) {
+    return JSON.stringify({error:e});
+  }
+
 
   var str = JSON.stringify(doc);
 
@@ -75,6 +79,7 @@ function getData(docId, ignoreCache) {
       Logger.log(str.length);
     }
   }
+
 
   // Logger.log("Sending " + docId  + " " + (new Date().getTime() - start) )   
   return str; 

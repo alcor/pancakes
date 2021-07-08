@@ -8,11 +8,39 @@
 <body style="margin:0;">
   <iframe id="frame" src="" frameborder="0" style="width:100vw; height:100vh;"></iframe>
   <script>
+    window.onmessage = function(e){
+      let data = e.data;
+      let params = new URLSearchParams(data);
+      let path = [""];
+      path.push(data.toc)
+      if (data.doc) path.push(encodeURIComponent(data.doc))
+      if (data.hash) path.push("#" + data.hash)
+      if (data.title) document.title = data.title;
+      history.pushState(undefined, data.title, "#" + path.join("/"))
+    }
+
     let frame = document.getElementById('frame');
     let domain = undefined
     let script = 'AKfycbyKPLXvzW8tb_pIo0hnLDwVJddxT2VDJhjnVzuIwQcRk7S_17Bf1YVvmEkW_WxElSh3'
+    script = 'AKfycbwbfdLU3FMWtbb_eG6djCewES7XIsUgAnoCk1eELV8'
+
+    let path = window.location.hash.slice(1);
+    let components = path.split("/");
+
     let url = `https://script.google.com/${domain ? 'a/macros/' + domain : 'macros'}/s/${script}/exec`
+
+    if (components.length > 1){
+      url += "?toc=" + components[1];
+    }
+    if (components.length > 2){
+      url += "&doc=" + components[2];
+    }
+    if (components.length > 3){
+      url += "&mode=" + components[3];
+    }
+
     frame.src = url;
+
   </script>
 </body>
 </html>

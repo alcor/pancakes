@@ -2,23 +2,31 @@
 <html>
 <head>
 <title></title>
-<base target="_top">
+<base target="_self">
 <?!=HtmlService.createHtmlOutputFromFile('gs/css').getContent()?>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Bebas+Neue" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js" doNotEncode></script>
 </head>
 <body>
-
+<form id="new" onsubmit="submitNewToc(); return false;">
+  <input id="new-url" type="text" placeholder="Paste a Google Docs Link">
+  <div style="display:flex">
+    <input type="button" onclick="document.body.classList.remove('new')" value="Cancel">
+    <input type="submit" value="Create">
+  </div>
+</form>
 <nav>
   <div id="menu-button" class="menu-button" onclick="this.classList.toggle('open'); event.stopPropagation();">
     <div class="material-icons">more_horiz</div>
     <div class="menu-contents">
-      <div class="menu-item edit_doc" onclick="editDoc()">Edit Document</div>
-      <div class="menu-item edit_toc" onclick="editToc()">Edit Index</div>
-      <div class="menu-item edit_toc" onclick="fullscreen()">Fullscreen</div>
+      <div class="menu-item action-edit-doc" onclick="editDoc(event)">Edit Document</div>
+      <div class="menu-item action-edit-toc" onclick="editToc(event)">Edit Index</div>
+      <!-- <div class="menu-item action-fullscreen" onclick="fullscreen()">Fullscreen</div> -->
+      <div class="menu-item action-new-toc" onclick="createNewToc()">Create New...</div>
     </div>
   </div>
   <div id="toc" class="toc-content"></div>
@@ -49,12 +57,11 @@
   let tocData = <?!=JSON.stringify(tocData)?>;
   let docData = <?!=JSON.stringify(docData)?>;
 
-  if (docData && docData != {}) {
+  if (docData && docData != {} && !docData.error) {
     localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:docData}));
   }
 
   google.script.url.getLocation(function(location) {
-    tocId = location.parameter.toc;
     hash = location.hash
   });
 
@@ -88,7 +95,9 @@ function loadDocInline(doc, isToc = false, ignoreCache = false) {
 
   console.debug("⬇️ Fetching:", doc.id)
   document.body.classList.add(hasOldData ? "outofdate" :"loading");
-  google.script.run.withSuccessHandler(gotData.bind(null, doc, isToc)).getData(doc.id, ignoreCache);
+  google.script.run
+  .withFailureHandler((e) => console.log("ERROR", e))
+  .withSuccessHandler(gotData.bind(null, doc, isToc)).getData(doc.id, ignoreCache);
 
 }
 
@@ -98,7 +107,9 @@ function gotData(doc, isToc, response) {
   renderContent(data, isToc)
   document.body.classList.remove("loading");
   document.body.classList.remove("outofdate");
-  if (!isToc) localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:data}));
+  if (!isToc && !data.error) {
+    localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:data}));
+  }
 }
 
 
@@ -146,8 +157,13 @@ function colorForObject(rgb) {
 
 // CSS Creation
 
-function cssForDoc(doc) {
+function cssForDoc(doc, isToc) {
   let css = []
+
+  let color = colorForObject(doc.documentStyle?.background?.color?.color?.rgbColor)
+  if (color) css.push((isToc ? 'nav' : 'main')  + `{background-color:${color}}`);
+
+
   for (let info of doc.namedStyles?.styles) {
     let type = info.namedStyleType;
     let selector = typeToSelector(type);
@@ -158,6 +174,7 @@ function cssForDoc(doc) {
     }
     if (info.textStyle.weightedFontFamily?.fontFamily) {
       declarations.push(`font-family:${info.textStyle.weightedFontFamily.fontFamily}, system-ui, sans-serif;`);
+      maybeLoadFont(info.textStyle.weightedFontFamily.fontFamily);
     }
     if (info.textStyle.weightedFontFamily?.weight) {
       declarations.push(`font-weight:${info.textStyle.weightedFontFamily.weight};`);
@@ -183,14 +200,15 @@ function elementForParagraph(p, doc) {
     let selector = typeToSelector(p.paragraphStyle.namedStyleType); 
 
     let attrs = {}
-    if (p.bullet && !doc.isToc) {
+    let style = p.paragraphStyle;
+
+    if (!style.headingId && p.bullet && !doc.isToc) {
       selector = 'p.li';
       let level = p.bullet.nestingLevel || 0;
       selector += ".bullet-" + level;
     };
     if (p.table) console.log("p.table", p.table)
 
-    let style = p.paragraphStyle;
 
     if (style.shading && !doc.isToc) {
       let color = colorForObject(style.shading?.backgroundColor?.color?.rgbColor);
@@ -209,6 +227,9 @@ function elementForElement(e, doc) {
   if (e.inlineObjectElement) {
     return elementForObject(doc.inlineObjects[e.inlineObjectElement.inlineObjectId]);
   }
+  if (e.horizontalRule) {
+    return m('hr');
+  }
   
   let text = e.textRun?.content
   if (!text) {
@@ -226,7 +247,7 @@ function elementForElement(e, doc) {
     if (runStyle.baselineOffset == "SUBSCRIPT") el = m('sup',{}, el) ;
     if (runStyle.foregroundColor) el = m('span', {style:"color:" + colorForObject(runStyle.foregroundColor.color.rgbColor)}, el);
   } else {
-    el = el.trim();
+    // el = el.trim();
   }
   
   if (runStyle.link) {
@@ -242,7 +263,9 @@ function elementForElement(e, doc) {
   return el;
 }
 
-
+let ERROR_DESCRIPTIONS = {
+  403: "This document may not be shared with others"
+}
 function elementForObject(info) {
   info = info.positionedObjectProperties || info.inlineObjectProperties;
   if (!info) return;
@@ -314,61 +337,82 @@ function expandDocUrl(url) {
 }
 
 function renderContent(doc, isToc) {
+  
   // Create elements for document content
   let body = doc.body
   let docType = isToc ? 'toc' : 'doc';
-  console.log("📐Rendering", docType, [doc.documentId, doc])
+  console.log("📐 Rendering", docType, [doc.documentId, doc])
   
   if (isToc) doc.isToc = true;
 
-  
   let children = [];
   let rootEl = m('div.' + docType + '-inner', {})
   let headingStack = [];
   let currentHeader;
 
-  for (let c of doc.body.content) {
-    let el;
-    if (c.paragraph) {      
-      el = elementForParagraph(c.paragraph, doc);
-    } else if (c.table) {
-      el = elementForTable(c.table, doc);
+  if (doc.error) {
+    rootEl.appendChild(m("div.error", {},
+      m('b', {}, ERROR_DESCRIPTIONS[doc.error.details.code]),
+      m('br'),
+      m('p', {}, doc.error.details.message),
+      m('i', {}, doc.error.name, " ",  doc.error.details.code.toString())
+      ));
+  } else {
+    for (let c of doc.body.content) {
+      let el;
+      if (c.paragraph) {      
+        el = elementForParagraph(c.paragraph, doc);
+      } else if (c.table) {
+        el = elementForTable(c.table, doc);
+      }
+
+      let headingId = c.paragraph?.paragraphStyle?.headingId
+      let depth = parseInt(c.paragraph?.paragraphStyle?.namedStyleType?.slice(-1));
+
+      if (headingId) {
+        let index = headingStack.findIndex(h => h.depth >= depth );
+        if (index != -1) headingStack.splice(index);
+      }
+
+      let parent = headingStack.length ? headingStack[headingStack.length - 1].el : rootEl;
+    
+      if (headingId) {
+        if (depth) {
+          let hasBullet = c.paragraph?.bullet;
+          el.classList.add("heading")
+          let headingChildren = m('div.heading-children', {depth:depth, id:headingId + "-children"});   
+
+          let containerClasses = ['div', 'heading-container'];
+
+          if (hasBullet) containerClasses.push('collapsed')
+          containerClasses.push("heading-" +depth);
+          el = m(containerClasses.join('.'), {id: headingId + "-container"}, el, headingChildren)
+          headingStack.push({depth: depth, el: headingChildren})
+        }
+      }
+
+      if (el) parent.appendChild(el)
     }
 
-    let headingId = c.paragraph?.paragraphStyle?.headingId
-    let depth = parseInt(c.paragraph?.paragraphStyle?.namedStyleType?.slice(-1));
 
-    if (headingId) {
-      let index = headingStack.findIndex(h => h.depth >= depth );
-      if (index != -1) headingStack.splice(index);
+    // Create CSS rules for document styles
+    let css = cssForDoc(doc, isToc) // isToc ? cssForDoc(doc) : undefined;
+    if (css && css.length) {
+        rootEl.appendChild(m('style', {type:'text/css'}, css))
     }
-
-    let parent = headingStack.length ? headingStack[headingStack.length - 1].el : rootEl;
-    if (el) parent.appendChild(el)
-
-    if (headingId && depth) {
-      let headingChildren = m('div.children', {depth:depth, id:headingId + "-children"});    
-      parent.appendChild(headingChildren);
-      headingStack.push({depth: depth, el: headingChildren})
-    }
-
   }
 
   let docEl = document.getElementById(docType);
   while (docEl.firstChild) docEl.removeChild(docEl.lastChild);
 
 
-  // Create CSS rules for document styles
-  let css = isToc ? undefined : cssForDoc(doc)
-  if (css && css.length) {
-      rootEl.appendChild(m('style', {type:'text/css'}, css))
-  }
 
   docEl.appendChild(rootEl)
 
 
   if (isToc) {
     let url;
+    document.title = doc.title;
     if (docId.length) {
       url = expandDocUrl(docId)
     } else {
@@ -426,14 +470,24 @@ function urlForDocInfo(doc) {
 }
 
 function createNewToc() {
-  let link = prompt("Paste a url for a Google Doc to use as a Table of Contents")
-  let docInfo = docInfoForUrl(link)
-  if (docInfo.id) {
-    debugger
-    google.script.history.push(null, {toc:docInfo.id});
-    tocId = docInfo.id;
-  }
+  document.body.classList.add("new");
+  document.getElementById("new-url").focus()
 }
+
+function submitNewToc() {
+  let link = document.getElementById("new-url").value
+  let docInfo = link.startsWith("http") ? docInfoForUrl(link) : {id:link};
+  if (docInfo.id) {
+    tocId = docInfo.id;
+    docId = '';
+    docData = {};
+    tocData = {};
+    pushHistoryState();
+    loadDocInline({id: tocId}, true, true)
+  }
+  document.body.classList.remove("new");
+}
+
 
 document.addEventListener('click', function(e) {
   document.getElementById('menu-button').classList.remove('open');
@@ -448,24 +502,33 @@ document.addEventListener('click', function(e) {
     return false;
   } else {
     if (e.target.id) {
-      document.getElementById(e.target.id + "-children").classList.toggle('collapsed')
+      document.getElementById(e.target.id + "-container").classList.toggle('collapsed')
     }
 
   }
 })
 
-function editToc() {
-  displayDoc("https://docs.google.com/document/d/" + tocId + "/edit", true)
+function editToc(e) {
+  let url = "https://docs.google.com/document/d/" + tocId + "/edit";
+  if (e.metaKey || e.ctrlKey) {
+    window.open(url, '_blank');
+  } else {
+    displayDoc(url, true)
+  }
 }
 
-function editDoc() {
+function editDoc(e) {
   let url = docId;
   if (!url.startsWith("http")) url = urlForDocInfo({id:docId}, true)
-  displayDoc(url, true)
+
+  if (e.metaKey || e.ctrlKey) {
+    window.open(url, '_blank');
+  } else {
+    displayDoc(url, true)
+  }
 }
 
 function fullscreen() {
-
   let el = document.getElementById('doc-frame');
   el.requestFullscreen();
 }
@@ -487,7 +550,6 @@ function urlIsEmbeddable(url) {
   }
   return false;
 }
-
 
 function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = false) {
   console.debug("🖼 Displaying", url)
@@ -531,8 +593,20 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
       document.body.classList.add('frame');
     }
     updateTocSelection(url, updateHistory);
-    if (updateHistory) google.script.history.push({'timestamp': new Date().getTime(), doc:docId}, {toc:tocId, doc:docId, mode:globalMode});
+    if (updateHistory) {
+      pushHistoryState()
+    }
   }
+}
+
+function pushHistoryState() {
+  let attrs = {toc:tocId};
+  console.log("toc", attrs)
+  if (docId && docId.length) attrs.doc = docId;
+  console.log("toc", attrs, tocId)
+  google.script.history.push({'timestamp': new Date().getTime(), doc:docId}, attrs);
+  attrs.title = document.title;
+  window.top.postMessage(attrs, '*')
 }
 
 function rewriteUrl(url) {
@@ -545,6 +619,30 @@ function rewriteUrl(url) {
   }
 }
 
+let loadedFonts = {}  
+var maybeLoadFont = function(font) {
+  if (!font) return false;
+  if (document.fonts.check("12px " + font )) return false; // No need to load font.
+  if (loadedFonts[font] == 'loaded') return false;  // Font already loaded.
+  if (loadedFonts[font] == 'loading') return true;  // Font is loading, just pretend we're loading it.
+  
+
+  loadedFonts[font] = 'loading';
+  WebFont.load({
+      google: { families: [font] },
+      timeout: 2000,
+      fontactive: function(family, fvd) {
+        console.log('💼 Loaded ' + family);
+        loadedFonts[family] = 'loaded';
+      },
+      fontinactive: function(family, fvd) {
+        // Error loading font. Fallback
+        loadedFonts[family] = 'loaded';
+        console.log('⛔️ Failed to load ' + family);
+      }
+  });
+  return true;
+}
 
 google.script.history.setChangeHandler(function (e) {
   let state = e.state;
@@ -553,7 +651,6 @@ google.script.history.setChangeHandler(function (e) {
 });
 
 if (!tocId.length) {
-  createNewToc();
   loadDocInline({id: tocId}, true)
 } else {
   renderContent(tocData, true)

@@ -61,23 +61,75 @@
     overflow-y:scroll;
     overflow-x:hidden;
     background:#fefefe;
-    padding:var(--padding-left) 0;
     box-sizing:border-box;
-    box-shadow:0 3px 3px 1px rgba(60,64,67,.15);
+    border-right:1px solid rgba(0,0,0,0.05);
     position:fixed;
     z-index:10;
     flex-basis:240px;
     flex:0 0 auto;
-  user-select:none;
+    user-select:none;
+    box-sizing:border-box;
+   background-clip: border-box;
   }
   
   main {
+    min-height:100vh;
   }
   
-  main h1,
-  main h2,
-  main h3 {
-    margin-top:2em;
+  
+  
+  .heading-container.collapsed,
+  .heading:before
+   {
+    cursor:pointer;
+  }
+  
+  nav .heading {
+    line-height:24px;
+    margin-top:8px;
+  }
+  
+  nav .heading-container.heading-3 >.heading-children,
+  nav .heading-container.heading-4 >.heading-children,
+  nav .heading-container.heading-5 >.heading-children,
+  nav .heading-container.heading-6 >.heading-children {
+    margin-left:18px;
+  }
+  .heading:before {
+    content:'chevron_right';
+    float:left;
+    margin-left:-1em;
+    opacity:0.0;
+    transition:transform 200ms;
+    transform: rotate(90deg);
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  .heading-container.collapsed .heading:before {
+     transform: rotate(0deg);
+     opacity:1.0;
+  }
+  
+  .heading:hover:before {
+    opacity:0.4
+  
+  }
+  
+  .heading-container.collapsed .heading-children{
+    max-height:0px;
+    overflow:hidden;
   }
   
   img {
@@ -174,17 +226,18 @@
   nav .toc-inner p,
   nav .toc-inner .title,
   nav .toc-inner .subtitle,
-  nav .toc-inner h1,
-  nav .toc-inner h2,
-  nav .toc-inner h3,
-  nav .toc-inner h4,
-  nav .toc-inner h5,
-  nav .toc-inner h6,
+  nav .toc-inner .heading,
   nav .toc-inner a {
     display:block;
     text-decoration:none;
     padding: 4px 24px 4px var(--padding-left);
     cursor:default;
+  }
+  
+  
+  
+  nav .toc-inner .heading a {
+    margin:0 -24px 0 -32px;
   }
   
   
@@ -212,6 +265,26 @@
     cursor:alias;
   }
   
+  nav .toc-inner a.external-link:hover:before {
+    content:'open_in_new';
+    float:right;
+    margin-right:-1em;
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    opacity:0.5;
+  }
+  
   main a,
   main u {
     text-decoration:none;
@@ -227,26 +300,57 @@
   }
   
   .doc-inner {
-      padding:2em;
+      padding:144px 2em;
       width: 45em;
       margin: auto;
   }
   
-  main .title { font-size: 28px; margin-bottom:8px;}
+  .toc-inner {
+    padding:100px 0;
+  }
+  
+  main .title:first-child {
+    margin-top:-60px;
+    float:left;
+  }
+  
+  main .title { font-size: 2.5em; margin-bottom:8px;}
   main .subtitle { font-size: 12px; margin-bottom:8px; margin-top:-8px;}
+  main h1 { font-weight: 400; font-size:18px; margin-top:1.5em;}
+  main h2 { font-weight: 400; font-size:14px; }
+  main h3 { font-weight: 400; font-size:14px; }
+  main h4 { font-weight: 400; font-size:14px; }
+  main h5 { font-weight: 400; font-size:14px; }
+  main h6 { font-weight: 400; font-size:14px; }
   main table {
     width:100%;
   }
-  nav .title {font-size: 18px}
-  nav h1 { font-size: 14px; margin:12px 0 0 0; font-weight:bold;}
-  nav h2 { font-size: 14px; margin:12px 0 0 0; text-transform:uppercase; letter-spacing: 0.02em; opacity:0.4; font-weight:bold;}
+  
+  hr { border:none; border-top: 0.5px solid currentColor; }
+  
+  nav .title {font-size: 22px; margin-bottom:20px;}
+  nav .subtitle {font-size: 14px; opacity: 0.4}
+  nav h1 { font-weight: 700; font-size:14px; margin:0;}
+  nav h2 { font-weight: 400; font-style: oblique; font-size:14px; margin:0; opacity:0.4}
+  nav h3 { font-weight: 400; font-size:14px; margin:0;}
+  nav h4 { font-weight: 400; font-size:14px; margin:0;}
+  nav h5 { font-weight: 400; font-size:14px; margin:0;}
+  nav h6 { font-weight: 400; font-size:14px; margin:0;}
+  nav hr { margin-left:-32px; margin-right:-24px; opacity: 0.2;}
+  
+  
   
   nav p {
     margin: 0;
     color:rgba(0,0,0,.54);
   }
+  
   nav p a {
-    color:black;
+    color: rgb(97, 97, 97);
+  }
+  
+  nav p a:hover {
+    color: rgb(0, 0, 0);
   }
   
   
@@ -260,10 +364,8 @@
     display:inline-block;
     color:rgba(0,0,0,0.4);
     z-index:20;
-    background-color:white;
     border-radius:0px;
     position:relative;
-    margin-top:-32px;
     cursor:default;
   }
   
@@ -295,6 +397,57 @@
   }
   .menu-button.open .menu-contents {
     display:block;
+  }
+  
+  
+  #new {
+    padding: 2em;
+    width: 320px;
+    left: 8px;
+    position: absolute;
+    top: 8px;
+    box-shadow: 0 10px 20px rgb(0 0 0 / 8%), 0 0.5px 1px 0.5px rgb(0 0 0 / 26%);
+    z-index:100;
+    background:white;
+    box-sizing:border-box;
+    flex-direction:column;
+    display:none;
+    border-radius:4px;
+  }
+  #new input {
+      width: 100%;
+      font-size: 13px;
+      display: block;
+      padding: 0.5em 0.5em;
+      box-sizing: border-box;
+  }
+  
+  #new input[type="submit"],
+  #new input[type="button"] {
+    border:none;
+    margin-top:1em;
+    width:50%;
+    font-size: 16px;
+    border-radius:2px;
+  }
+  
+  
+  #new input[type="submit" i] {
+    background:black;
+    color:white;
+    margin-left:1em;
+  }
+  
+  body.new #new {
+    display:flex;
+  
+  
+  }
+  
+  .error {
+    padding: 1em;
+    background-color:#f1f1f1;
+  
   }
   
   </style>
