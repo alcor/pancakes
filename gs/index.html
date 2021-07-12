@@ -163,6 +163,10 @@ function cssForDoc(doc, isToc) {
   let color = colorForObject(doc.documentStyle?.background?.color?.color?.rgbColor)
   if (color) css.push((isToc ? 'nav' : 'main')  + `{background-color:${color}}`);
 
+  if (!isToc) {
+    let docStyle = doc.documentStyle;
+    css.push(`.doc-inner {max-width:${docStyle.pageSize.width.magnitude - docStyle.marginLeft.magnitude - docStyle.marginRight.magnitude}pt;}`);
+  }
 
   for (let info of doc.namedStyles?.styles) {
     let type = info.namedStyleType;
@@ -218,14 +222,14 @@ function elementForParagraph(p, doc) {
     if (p.paragraphStyle?.headingId) attrs.id = p.paragraphStyle.headingId;
 
     return m(selector, attrs, 
-      p.positionedObjectIds?.map(o => elementForObject(doc.positionedObjects[o])),
+      p.positionedObjectIds?.map(o => elementForObject(doc.positionedObjects[o], doc)),
       p.elements?.map(e => elementForElement(e, doc))
     )
 }
 
 function elementForElement(e, doc) {
   if (e.inlineObjectElement) {
-    return elementForObject(doc.inlineObjects[e.inlineObjectElement.inlineObjectId]);
+    return elementForObject(doc.inlineObjects[e.inlineObjectElement.inlineObjectId], doc);
   }
   if (e.horizontalRule) {
     return m('hr');
@@ -266,7 +270,7 @@ function elementForElement(e, doc) {
 let ERROR_DESCRIPTIONS = {
   403: "This document may not be shared with others"
 }
-function elementForObject(info) {
+function elementForObject(info, doc) {
   info = info.positionedObjectProperties || info.inlineObjectProperties;
   if (!info) return;
 
@@ -302,6 +306,7 @@ function elementForObject(info) {
 
   styles.push(`width:${w}px`)
   styles.push(`height:${h}px`)
+  if (!doc.isToc) styles.push(`margin:1em`)
   styles.push(`background-position:${l * w}px ${t * h}px`)  
   styles.push(`background-size:${(r - l) * w}px ${(b - t) * h}px`)  
   //console.log(styles.join("\n"), crop)
@@ -313,6 +318,8 @@ function elementForObject(info) {
 
 function elementForTable(table, doc) {
   let rows = table.tableRows.map(tr => {
+    if (tr.tableRowStyle?.minRowHeight?.magnitude < 0.08) return null; // 0.001 min row height is used to hide tables from view mode
+    console.log("Row" , tr.tableRowStyle?.minRowHeight?.magnitude, undefined < 0.08)
     let cells = tr.tableCells.map(td => {
       let style = td.tableCellStyle;
       let attrs = {

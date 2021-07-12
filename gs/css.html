@@ -236,13 +236,9 @@
   
   
   
-  nav .toc-inner .heading a {
-    margin:0 -24px 0 -32px;
-  }
-  
-  
+  nav .toc-inner .heading a,
   nav .toc-inner p > a {
-    margin: 0 -24px 0 -32px;
+    margin: -4px -24px -4px -32px;
   }
   
   nav a {
@@ -300,25 +296,25 @@
   }
   
   .doc-inner {
-      padding:144px 2em;
-      width: 45em;
+      padding:72px 2em;
+      max-width: 45em;
       margin: auto;
   }
   
   .toc-inner {
-    padding:100px 0;
+    padding:36px 0;
   }
   
   main .title:first-child {
-    margin-top:-60px;
+    margin-top:-36px;
     float:left;
   }
   
-  main .title { font-size: 2.5em; margin-bottom:8px;}
+  main .title { font-size: 2.5em; margin-top:1.5em; margin-bottom:8px;}
   main .subtitle { font-size: 12px; margin-bottom:8px; margin-top:-8px;}
   main h1 { font-weight: 400; font-size:18px; margin-top:1.5em;}
-  main h2 { font-weight: 400; font-size:14px; }
-  main h3 { font-weight: 400; font-size:14px; }
+  main h2 { font-weight: 400; font-size:14px; margin-top:1.5em;}
+  main h3 { font-weight: 400; font-size:14px; margin-top:1.5em;}
   main h4 { font-weight: 400; font-size:14px; }
   main h5 { font-weight: 400; font-size:14px; }
   main h6 { font-weight: 400; font-size:14px; }
@@ -336,7 +332,7 @@
   nav h4 { font-weight: 400; font-size:14px; margin:0;}
   nav h5 { font-weight: 400; font-size:14px; margin:0;}
   nav h6 { font-weight: 400; font-size:14px; margin:0;}
-  nav hr { margin-left:-32px; margin-right:-24px; opacity: 0.2;}
+  nav hr { margin: 4px -24px -4px -32px; opacity: 0.2;}
   
   
   
@@ -353,7 +349,9 @@
     color: rgb(0, 0, 0);
   }
   
-  
+  td {
+    vertical-align: top;
+  }
   
   div.menu-button {
     width:24px; height:24px;
