@@ -57,8 +57,16 @@
   let tocData = <?!=JSON.stringify(tocData)?>;
   let docData = <?!=JSON.stringify(docData)?>;
 
+
+  let storage;
+  try {
+    storage = window.localStorage
+  } catch (e) {
+    console.log("Can't access localStorage", e)
+  }
+
   if (docData && docData != {} && !docData.error) {
-    localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:docData}));
+    storage?.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:docData}));
   }
 
   google.script.url.getLocation(function(location) {
@@ -78,7 +86,7 @@ function loadDocInline(doc, isToc = false, ignoreCache = false) {
       return;
     } 
     
-    let cache = localStorage.getItem(doc.id)
+    let cache = storage?.getItem(doc.id)
     if (cache) {
       console.log("💾 Rendering Cache", doc.id)
       let data = JSON.parse(cache);
@@ -104,11 +112,15 @@ function loadDocInline(doc, isToc = false, ignoreCache = false) {
 // Parse data
 function gotData(doc, isToc, response) {
   let data = JSON.parse(response)
+  if (doc.id != docId) {
+    console.log("ignoring load of old document", doc)
+    return;
+  }
   renderContent(data, isToc)
   document.body.classList.remove("loading");
   document.body.classList.remove("outofdate");
   if (!isToc && !data.error) {
-    localStorage.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:data}));
+    storage?.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:data}));
   }
 }
 
@@ -275,44 +287,65 @@ function elementForObject(info, doc) {
   if (!info) return;
 
   let object = info.embeddedObject
+  if (!object.imageProperties?.contentUri) return;
   let styles = [];
-  let position = info.positioning;
-  if (pos = info.positioning) {
-    if (pos.layout == "WRAP_TEXT") {
-      styles.push(`float:right`);
-    } else if (pos.layout == "BREAK_LEFT_RIGHT") {
-      styles.push(`display:block`);
-    } else {
-      if (pos.layout == "IN_FRONT_OF_TEXT") styles.push(`position:absolute; z-index:1;`);
-      if (pos.layout == "BEHIND_TEXT") styles.push(`position:absolute; z-index:-1`);
-      if (pos.leftOffset) styles.push(`margin-left:${pos.leftOffset?.magnitude}px;`);
-      if (pos.topOffset) styles.push(`margin-top:${pos.topOffset?.magnitude}px;`);
-    }
-  } else {
-    styles.push(`display:inline-block`);
-  }
+  let containerStyles = [];
 
+  let containerClass = ['div', 'img-container'];
+  let position = info.positioning;
   let w = object.size.width.magnitude;
   let h = object.size.height.magnitude;
+
+    let docStyle = doc.documentStyle;
+    let pageWidth = docStyle.pageSize.width.magnitude - docStyle.marginLeft.magnitude - docStyle.marginRight.magnitude;
+  console.log("width", w - pageWidth)
+    if (w - pageWidth > -100) {
+      containerClass.push("full-width");
+    }
+
+  if (pos = info.positioning) {
+    if (pos.layout == "WRAP_TEXT") {
+      if (pos.leftOffset.magnitude > (pageWidth / 2))  {
+        containerClass.push("float-right");
+      } else {
+        containerClass.push("float-left");
+      }
+      
+    } else if (pos.layout == "BREAK_LEFT_RIGHT") {
+      containerClass.push("block");
+    } else {
+      if (pos.layout == "IN_FRONT_OF_TEXT") containerStyles.push(`position:absolute; z-index:1;`);
+      if (pos.layout == "BEHIND_TEXT") containerStyles.push(`position:absolute; z-index:-1`);
+      if (pos.leftOffset) containerStyles.push(`margin-left:${pos.leftOffset?.magnitude}pt;`);
+      if (pos.topOffset) containerStyles.push(`margin-top:${pos.topOffset?.magnitude}pt;`);
+    }
+  } else {
+    containerStyles.push(`display:inline-block`);
+  }
+
 
   // TODO: This is incorrect because offsets should be based on the original image width, which the API does not provide.
   // https://developers.google.com/docs/api/reference/rest/v1/CropProperties
 
-  let crop = object.imageProperties.cropProperties;
-  let t = 0 - (crop.offsetTop || 0);
-  let l = 0 - (crop.offsetLeft || 0);
-  let r = 1 + (crop.offsetRight || 0);
-  let b = 1 + (crop.offsetBottom || 0);
+  let crop = object.imageProperties?.cropProperties;
+  if (false) {
+    let t = 0 - (crop.offsetTop || 0);
+    let l = 0 - (crop.offsetLeft || 0);
+    let r = 1 + (crop.offsetRight || 0);
+    let b = 1 + (crop.offsetBottom || 0);
+    styles.push(`background-position:${l * w}pt ${t * h}pt`)  
+    styles.push(`background-size:${(r - l) * w}pt ${(b - t) * h}pt`)  
+  }
 
-  styles.push(`width:${w}px`)
-  styles.push(`height:${h}px`)
-  if (!doc.isToc) styles.push(`margin:1em`)
-  styles.push(`background-position:${l * w}px ${t * h}px`)  
-  styles.push(`background-size:${(r - l) * w}px ${(b - t) * h}px`)  
-  //console.log(styles.join("\n"), crop)
+  let ratio = h/w * 100;
+  styles.push(`padding-top:${ratio}%`)
   styles.push(`background-image:url(${object.imageProperties?.contentUri})`)  
 
-  return m('div.img', {style:styles.join(";")})
+  containerStyles.push(`width:${w}pt`)
+
+  return m(containerClass.join("."), {style:containerStyles.join(";")},
+    m('div.img', {style:styles.join(";")})
+  )
 }
 
 
@@ -354,6 +387,8 @@ function renderContent(doc, isToc) {
 
   let children = [];
   let rootEl = m('div.' + docType + '-inner', {})
+  let tocEl = isToc ? undefined : m('div.doc-toc', {})
+  let heroEl;
   let headingStack = [];
   let currentHeader;
 
@@ -365,10 +400,21 @@ function renderContent(doc, isToc) {
       m('i', {}, doc.error.name, " ",  doc.error.details.code.toString())
       ));
   } else {
-    for (let c of doc.body.content) {
+    let firstParagraph = false;
+    for (const c of doc.body.content) {
       let el;
       if (c.paragraph) {      
         el = elementForParagraph(c.paragraph, doc);
+        if (!isToc && !firstParagraph) {
+          firstParagraph = true;
+          let firstChild = el.children[0];
+          if (firstChild && firstChild.classList.contains('img-container') && firstChild.classList.contains('full-width')) {
+            heroEl = firstChild;
+            heroEl.style.width = '100%';
+            heroEl.classList.add('hero')
+            el.removeChild(firstChild)
+          }
+        }
       } else if (c.table) {
         el = elementForTable(c.table, doc);
       }
@@ -385,6 +431,7 @@ function renderContent(doc, isToc) {
     
       if (headingId) {
         if (depth) {
+          if (tocEl && depth < 2) tocEl.appendChild(m('a', {href:"#" + headingId}, el.innerText))
           let hasBullet = c.paragraph?.bullet;
           el.classList.add("heading")
           let headingChildren = m('div.heading-children', {depth:depth, id:headingId + "-children"});   
@@ -414,6 +461,11 @@ function renderContent(doc, isToc) {
 
 
 
+  if (heroEl) {
+    docEl.appendChild(heroEl)
+    rootEl.classList.add('has-hero')
+  }
+  // if (tocEl) docEl.appendChild(tocEl);
   docEl.appendChild(rootEl)
 
 
@@ -547,6 +599,11 @@ function updateTocSelection(url) {
   let links = document.querySelectorAll("nav a")
   for (let link of links) {
     link.classList.toggle('selected', link.id == id)
+    if (link.id == id) {
+      while (link = link.parentNode.closest('.heading-container')) {
+        link.classList.remove('collapsed');
+      }
+    }
   }
 }
 

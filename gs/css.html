@@ -78,6 +78,7 @@
   
   
   
+  
   .heading-container.collapsed,
   .heading:before
    {
@@ -146,7 +147,45 @@
   
   .img {
     background-repeat: no-repeat;
-    margin-right: 3px;
+    background-size:cover;
+  }
+  
+  .img.hero {
+    margin-top:-10em;
+    position:absolute;
+    width:100%;
+  }
+  
+  .doc-inner .img-container {
+    max-width:100%;
+    min-width:10px;
+    display:inline-block;
+    
+  }
+  
+  .img-container.hero {
+    max-height: 50vh;
+    overflow: hidden;
+  }
+  
+  .doc-inner > p:first-child {
+    background-color:red;
+    margin:0;
+  }
+  
+  .img-container.float-left {
+    float:left;
+    margin: 1em 1em 1em 0;
+  }
+  
+  .img-container.float-right {
+    float:right;
+    margin: 1em 0em 1em 1em;
+  }
+  
+  .img-container.float-right {
+    display:block;
+    margin: 0em 1em 0em 1em;
   }
   
   .header {
@@ -300,14 +339,12 @@
       max-width: 45em;
       margin: auto;
   }
+  .doc-inner.has-hero {
+    padding-top:36px;
+  }
   
   .toc-inner {
     padding:36px 0;
-  }
-  
-  main .title:first-child {
-    margin-top:-36px;
-    float:left;
   }
   
   main .title { font-size: 2.5em; margin-top:1.5em; margin-bottom:8px;}
@@ -448,5 +485,41 @@
   
   }
   
+  div.doc-toc {
+    right:0;
+    position:fixed;
+    width:240px;
+    background-color:white;
+    padding:12px;
+    left: 240px;
+    width:24px;
+    transition: width 0.2s;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  
+  div.doc-toc:hover {
+    right:0px;
+    width:240px;
+  }
+  
+  div.doc-toc a {
+    display:block;
+    padding: 0 20px;
+    white-space:nowrap;
+      text-overflow:ellipsis;
+  
+  }
+  
+  @media only screen and (max-width: 900px) {
+  nav {
+    display:none;
+  }
+  main.content {
+    left:0;
+    width:100vw;
+  }
+  
+  }
   </style>
   
