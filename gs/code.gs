@@ -2,33 +2,39 @@ function doGet(e) {
   var parameters = e.parameter;
 
   var template = HtmlService.createTemplateFromFile('gs/index')
-  let favmoji;
+  let favmoji, favicon;
 
-  template.mode = parameters.mode || 'view';  
-  template.tocId = parameters.toc || '1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g';
-  template.docId = '';
-  template.tocData = {};
-  template.docData = {}
+  let data = {}
+  data.mode = parameters.mode || 'view';  
+  data.tocId = parameters.toc;
+  data.docId = parameters.doc
+  data.heading = parameters.heading || ''
 
-  template.tocData = JSON.parse(getData(template.tocId, true))
-  template.title = template.tocData.title;
+  if (parameters.path) {
+    let components = parameters.path.split("/");
+    if (components.length > 1) data.tocId = components[1]
+    if (components.length > 2) data.docId = components[2]
+    if (components.length > 3) data.heading = components[3]
+  }
 
-  if (template.tocData?.inlineObjects) {
-    let obj = template.tocData.inlineObjects ? Object.values(template.tocData.inlineObjects).pop() : undefined;
-    template.favicon = obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri + "?.png";
+  if (!data.tocId) data.tocId = '1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g'
+
+  data.tocData = JSON.parse(getData(data.tocId, true))
+
+  if (data.tocData?.inlineObjects) {
+    let obj = data.tocData.inlineObjects ? Object.values(data.tocData.inlineObjects).pop() : undefined;
+    favicon = obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri + "?.png";
   }
   
-  
-  if (parameters.doc) {
-    if (!parameters.doc.startsWith("http")) {
-    template.docData = JSON.parse(getData(parameters.doc))
-    }
-    template.docId = parameters.doc;
+  if (data.docId && !data.docId.startsWith("http")) {
+    data.docData = JSON.parse(getData(data.docId))
   }
+
+  template.data = JSON.stringify(data);
 
   return template.evaluate()
-    .setTitle(template.title || "Document Sidebar")
-    .setFaviconUrl(template.favicon || `https://ssl.gstatic.com/dynamite/emoji/png/32/emoji_${favmoji || 'u1f4da'}.png`)
+    .setTitle(data.tocData.title || "Document Sidebar")
+    .setFaviconUrl(favicon || `https://ssl.gstatic.com/dynamite/emoji/png/32/emoji_${favmoji || 'u1f4da'}.png`)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
 }
@@ -46,7 +52,6 @@ function getData(docId, ignoreCache) {
       cached = Utilities.ungzip(cached);
       cached = cached.getDataAsString();
     }
-
     return cached; 
   }
 
@@ -57,7 +62,6 @@ function getData(docId, ignoreCache) {
   } catch (e) {
     return JSON.stringify({error:e});
   }
-
 
   var str = JSON.stringify(doc);
 
@@ -84,3 +88,25 @@ function getData(docId, ignoreCache) {
   // Logger.log("Sending " + docId  + " " + (new Date().getTime() - start) )   
   return str; 
 }
+
+function test() {
+  Logger.log(getData("1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g"))
+}
+function getUrl() { return ScriptApp.getService().getUrl(); }
+
+
+function fetchShortcut(query) {
+  var props = PropertiesService.getScriptProperties();
+  if (query.title) {
+    return props.getProperty("TITLE:" + query.title);
+  } else if (query.id) {
+    return props.getProperty("ID:" + query.id);
+  }
+}
+
+function storeShortcut(title, id) {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty("TITLE:" + title, id);
+  props.setProperty("ID:" + id, title);
+}
+

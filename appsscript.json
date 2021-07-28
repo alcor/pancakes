@@ -1,19 +1,16 @@
 {
   "timeZone": "America/Los_Angeles",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
   "dependencies": {
     "enabledAdvancedServices": [
       {
         "userSymbol": "Docs",
-        "version": "v1",
-        "serviceId": "docs"
+        "serviceId": "docs",
+        "version": "v1"
       }
     ]
   },
-  "oauthScopes": [
-    "https://www.googleapis.com/auth/drive.readonly"
-  ],
-  "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8",
   "webapp": {
     "executeAs": "USER_ACCESSING",
     "access": "ANYONE"
