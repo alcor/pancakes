@@ -131,6 +131,9 @@ nav .heading-container.heading-6 >.heading-children {
 
 }
 
+.title.heading:before {
+  display:none;
+}
 .heading-container.collapsed .heading-children{
   max-height:0px;
   overflow:hidden;
@@ -362,6 +365,11 @@ main table {
 }
 main table td {
   border: 1px solid rgba(0,0,0,0.05);
+  line-height:100%;
+}
+
+main td ul {
+  padding-inline-start: 12px;
 }
 
 hr { border:none; border-top: 0.5px solid currentColor; opacity:0.2;}
@@ -571,9 +579,7 @@ main.content {
   <div id="menu-button" class="menu-button" onclick="this.classList.toggle('open'); event.stopPropagation();">
     <div class="material-icons">more_horiz</div>
     <div class="menu-contents">
-      <div class="menu-item action-edit-doc" onclick="editDoc(event)">Edit Document</div>
-      <div class="menu-item action-edit-toc" onclick="editToc(event)">Edit Index</div>
-      <!-- <div class="menu-item action-fullscreen" onclick="fullscreen()">Fullscreen</div> -->
+      <div class="menu-item action-edit-mode" onclick="editMode(event)">Edit Document</div>
       <div class="menu-item action-new-toc" onclick="createNewToc()">Create New...</div>
     </div>
   </div>
@@ -633,7 +639,7 @@ function loadDocInline(doc, isToc = false, ignoreCache = false) {
   if (!ignoreCache) {
     if (docData && doc.id == docData.documentId) {
       console.log("💾 Rendering Doc Data", doc.id)
-      renderContent(doc, docData, false);
+      renderDocument(doc, docData, false);
       docData = undefined;
       return;
     } 
@@ -644,7 +650,7 @@ function loadDocInline(doc, isToc = false, ignoreCache = false) {
       let data = JSON.parse(cache);
 
       if (data.ts) {
-        renderContent(doc, data.val, isToc);
+        renderDocument(doc, data.val, isToc);
         if (new Date().getTime() - data.ts < 25 * 60 * 1000) {
           return;
         }
@@ -668,7 +674,7 @@ function gotData(doc, isToc, response) {
     console.log("ignoring load of old document", doc)
     return;
   }
-  renderContent(doc, data, isToc)
+  renderDocument(doc, data, isToc)
   document.body.classList.remove("loading");
   document.body.classList.remove("outofdate");
   if (!isToc && !data.error) {
@@ -946,8 +952,7 @@ function elementForTable(table, doc) {
     if (style.contentAlignment) css.push(`vertical-align:${style.contentAlignment}`);
 
     if (css.length) attrs.style = css.join(";")
-      let paragraphEls = td.content.map(c => elementForParagraph(c.paragraph, doc));
-      return m('td',attrs, paragraphEls)
+      return m('td',attrs, elementForBody(td, doc))
     })
     return m('tr', {style:'height:' + styleForMeasurement(minHeight)}, cells);
   })
@@ -963,21 +968,120 @@ function expandDocUrl(url) {
 
 const olMap = {"DECIMAL": "1", "ALPHA": "a", "ROMAN": "i"}
 
-function renderContent(docInfo, doc, isToc) {
-  
-  // Create elements for document content
-  let body = doc.body
-  let docType = isToc ? 'toc' : 'doc';
-  console.log("📐 Rendering", docType, [doc.documentId, doc])
-  
-  if (isToc) doc.isToc = true;
+function elementForBody(body, doc) {
 
-  let children = [];
-  let rootEl = m('div.' + docType + '-inner', {})
-  let docIndexEl = isToc ? undefined : m('div.doc-index', {})
+  let isRoot = !body.startIndex;
   let heroEl;
   let headingStack = [];
   let bulletStack = [];
+  let firstParagraph = false;
+
+  
+  let docType = doc.isToc ? 'toc' : 'doc';
+
+  let rootEl = isRoot ? m('div.' + docType + '-inner', {}) : m('div', {})
+  let docIndexEl = doc.isToc || !isRoot ? undefined : m('div.doc-index', {})
+
+  for (const c of body.content) {
+    let el;
+    
+    if (c.paragraph) {
+      el = elementForParagraph(c.paragraph, doc);
+      if (!doc.isToc && !firstParagraph) {
+        firstParagraph = true;
+        let firstChild = el.children[0];
+        if (firstChild && firstChild.classList.contains('img-container') && firstChild.classList.contains('full-width')) {
+          heroEl = firstChild;
+          heroEl.style.width = '100%';
+          heroEl.classList.add('hero')
+          el.removeChild(firstChild)
+        }
+      }
+    } else if (c.table) {
+      el = elementForTable(c.table, doc);
+    }
+
+    let headingId = c.paragraph?.paragraphStyle?.headingId
+    let depth = parseInt(c.paragraph?.paragraphStyle?.namedStyleType?.slice(-1));
+    if (c.paragraph?.paragraphStyle?.namedStyleType == "TITLE") depth = 0;
+
+    if (headingId) {
+      let index = headingStack.findIndex(h => h.depth >= depth );
+      if (index != -1) headingStack.splice(index);
+    }
+
+    
+    let parent = headingStack.length ? headingStack[headingStack.length - 1].el : rootEl;
+  
+    let bullet = c.paragraph?.bullet;
+    if (bullet && !headingId) {
+      let list = doc.lists[bullet.listId];
+      let nestingLevel = bullet.nestingLevel || 0;
+      let listInfo = list.listProperties.nestingLevels[nestingLevel];
+      
+      let ul;
+      let index = bulletStack.findIndex(h => h.nestingLevel >= nestingLevel );
+      if (index != -1)  {
+        bulletStack.splice(index + 1); 
+        index = bulletStack.length - 1;
+        let item = bulletStack[index]
+        if (item.id != bullet.listId) {
+          bulletStack = [];
+        } else {
+          ul = item.el
+        }
+      }
+            console.log("bullet", {list, bulletStack, ul})
+
+
+      if (!ul) {
+        console.log("listInfo", listInfo)
+        ul = m(listInfo.glyphSymbol ? 'ul' : 'ol', {type: olMap[listInfo.glyphType]});
+        (bulletStack.length ? bulletStack[bulletStack.length - 1].el : parent).appendChild(ul);
+        bulletStack.push({el: ul, nestingLevel: nestingLevel, id: bullet.listId })     
+      }
+      parent = ul;
+    }
+
+    if (headingId) {
+      if (depth >= 0) {
+        if (docIndexEl && depth <= 3 && el.innerText.trim().length) {
+          docIndexEl.appendChild(m('a.doc-index-link.d' + depth, {href:"#" + headingId, id:"index-" + headingId}, el.innerText))
+        }
+        el.classList.add("heading")
+        if (depth > 0) {
+          let headingChildren = m('div.heading-children', {depth:depth, id:headingId + "-children"});   
+          let containerClasses = ['div', 'heading-container'];
+          if (bullet) containerClasses.push('collapsed')
+          containerClasses.push("heading-" +depth);
+          el = m(containerClasses.join('.'), {id: headingId + "-container"}, el, headingChildren)
+          headingStack.push({depth: depth, el: headingChildren})
+        }
+      }
+    }
+
+    if (el) parent.appendChild(el)
+  }
+
+  if (heroEl) {
+    rootEl.classList.add('has-hero')
+  }
+
+  return [heroEl, docIndexEl, rootEl];
+}
+
+function renderDocument(docInfo, doc, isToc) {
+  
+  // Create elements for document content
+  if (isToc) doc.isToc = true;
+
+  let docType = doc.isToc ? 'toc' : 'doc';
+  console.log("📐 Rendering", docType, [doc.documentId, doc])
+
+  let rootEl = m('div.' + docType + '-inner', {})
+
+  let docEl = document.getElementById(docType);
+  while (docEl.firstChild) docEl.removeChild(docEl.lastChild);
 
   if (doc.error) {
     rootEl.appendChild(m("div.error", {},
@@ -987,110 +1091,20 @@ function renderContent(docInfo, doc, isToc) {
       m('i', {}, doc.error.name, " ",  doc.error.details.code.toString())
       ));
   } else {
-    let firstParagraph = false;
-    for (const c of doc.body.content) {
-      let el;
-      
-      if (c.paragraph) {
-        el = elementForParagraph(c.paragraph, doc);
-        if (!isToc && !firstParagraph) {
-          firstParagraph = true;
-          let firstChild = el.children[0];
-          if (firstChild && firstChild.classList.contains('img-container') && firstChild.classList.contains('full-width')) {
-            heroEl = firstChild;
-            heroEl.style.width = '100%';
-            heroEl.classList.add('hero')
-            el.removeChild(firstChild)
-          }
-        }
-      } else if (c.table) {
-        el = elementForTable(c.table, doc);
-      }
-
-      let headingId = c.paragraph?.paragraphStyle?.headingId
-      let depth = parseInt(c.paragraph?.paragraphStyle?.namedStyleType?.slice(-1));
-      if (c.paragraph?.paragraphStyle?.namedStyleType == "TITLE") depth = 0;
-
-      if (headingId) {
-        let index = headingStack.findIndex(h => h.depth >= depth );
-        if (index != -1) headingStack.splice(index);
-      }
-
-      
-      let parent = headingStack.length ? headingStack[headingStack.length - 1].el : rootEl;
-    
-      let bullet = c.paragraph?.bullet;
-      if (bullet && !headingId) {
-        let list = doc.lists[bullet.listId];
-        let nestingLevel = bullet.nestingLevel || 0;
-        let listInfo = list.listProperties.nestingLevels[nestingLevel];
-        
-        let ul;
-        let index = bulletStack.findIndex(h => h.nestingLevel >= nestingLevel );
-        if (index != -1)  {
-          bulletStack.splice(index + 1); 
-          index = bulletStack.length - 1;
-          let item = bulletStack[index]
-          if (item.id != bullet.listId) {
-            bulletStack = [];
-          } else {
-            ul = item.el
-          }
-        }
-
-        if (!ul) {
-          ul = m(listInfo.glyphSymbol ? 'ul' : 'ol', {type: olMap[listInfo.glyphType]});
-          (bulletStack.length ? bulletStack[bulletStack.length - 1].el : parent).appendChild(ul);
-          bulletStack.push({el: ul, nestingLevel: nestingLevel, id: bullet.listId })     
-        }
-        parent = ul;
-      }
-
-      if (headingId) {
-        if (depth >= 0) {
-          if (docIndexEl && depth <= 3 && el.innerText.trim().length) {
-            docIndexEl.appendChild(m('a.doc-index-link.d' + depth, {href:"#" + headingId, id:"index-" + headingId}, el.innerText))
-          }
-          el.classList.add("heading")
-          if (depth > 0) {
-            let headingChildren = m('div.heading-children', {depth:depth, id:headingId + "-children"});   
-            let containerClasses = ['div', 'heading-container'];
-            if (bullet) containerClasses.push('collapsed')
-            containerClasses.push("heading-" +depth);
-            el = m(containerClasses.join('.'), {id: headingId + "-container"}, el, headingChildren)
-            headingStack.push({depth: depth, el: headingChildren})
-          }
-        }
-      }
-
-      if (el) parent.appendChild(el)
-    }
-
-
-    // Create CSS rules for document styles
-    let css = cssForDoc(doc, isToc) // isToc ? cssForDoc(doc) : undefined;
-    if (css && css.length) {
-        rootEl.appendChild(m('style', {type:'text/css'}, css))
-    }
+    let contentEls = elementForBody(doc.body, doc, true);
+    contentEls.forEach(el => { if (el) docEl.appendChild(el)})
   }
 
-  let docEl = document.getElementById(docType);
-  while (docEl.firstChild) docEl.removeChild(docEl.lastChild);
 
-
-
-  if (heroEl) {
-    docEl.appendChild(heroEl)
-    rootEl.classList.add('has-hero')
+  // Create CSS rules for document styles
+  let css = cssForDoc(doc, isToc) // isToc ? cssForDoc(doc) : undefined;
+  if (css && css.length) {
+      docEl.appendChild(m('style', {type:'text/css'}, css))
   }
-   if (docIndexEl) docEl.appendChild(docIndexEl);
-  docEl.appendChild(rootEl)
-
 
   if (isToc) {
     let url;
     document.title = doc.title;
-
 
     if (doc.inlineObjects) {
       let obj = Object.values(doc.inlineObjects).pop();
@@ -1138,9 +1152,6 @@ function scrollToHeader(hash, updateHistory = false) {
   }
   //TODO: https://stackoverflow.com/questions/48634459/scrollintoview-block-vs-inline/48635751#48635751
 }
-
-
-
 
 function docInfoForUrl(url) {
   let match = url.match(docsRE)
@@ -1221,8 +1232,11 @@ document.addEventListener('click', function(e) {
     // e.stopPropogation();
     return false;
   } else {
-    if (e.target.id) {
-      document.getElementById(e.target.id + "-container").classList.toggle('collapsed')
+    if (e.target.classList.contains('title') && e.target.closest('nav') && (e.altKey || globalMode == 'edit')) {
+      editToc(e);
+    } else if (e.target.id) {
+      let container = document.getElementById(e.target.id + "-container")
+      if (container) container.classList.toggle('collapsed')
     }
 
   }
@@ -1249,6 +1263,18 @@ function editToc(e) {
   }
 }
 
+
+function editMode(e) {
+  if (globalMode != 'edit') {
+    globalMode = 'edit'
+  } else {
+    globalMode = 'view'
+  }
+  document.body.classList.toggle('edit', globalMode == 'edit')
+  let url = docId;
+  if (!url.startsWith("http")) url = urlForDocInfo({id:docId})
+  displayDoc(url)
+}
 function editDoc(e) {
   let url = docId;
   if (!url.startsWith("http")) url = urlForDocInfo({id:docId}, true)
@@ -1299,8 +1325,10 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
   let target = 'frame';
   let googleDoc = docInfoForUrl(url);  
 
+
   if (googleDoc) {
-    if (globalMode == 'edit') editMode = true;
+    if (googleDoc.id == docId) ignoreCache = true;
+    if (globalMode == 'edit' || url.endsWith("#")) editMode = true;
     if (editMode) {
       googleDoc.mode = 'edit';
     } else if (googleDoc.type == "document" && googleDoc.mode != "preview") {
@@ -1377,7 +1405,6 @@ function updateHistoryState(replace = false) {
 
 function rewriteUrl(url) {
   for (let rewrite of URL_REWRITES) {
-    console.log("rplace", url.replace(rewrite.re, rewrite.sub))
     let match =  url.match(rewrite.re)
     if (match) {
       return url.replace(rewrite.re, rewrite.sub)
@@ -1425,7 +1452,7 @@ google.script.history.setChangeHandler(function (e) {
 if (!tocId.length) {
   loadDocInline({id: tocId}, true)
 } else {
-  renderContent({id: tocId}, tocData, true)
+  renderDocument({id: tocId}, tocData, true)
 }
 
 </script>
