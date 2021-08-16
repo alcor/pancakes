@@ -15,11 +15,11 @@ function doGet(e) {
     if (components.length > 1) data.tocId = components[1]
     if (components.length > 2) data.docId = components[2]
     if (components.length > 3) data.heading = components[3]
-  }
+  } 
 
   if (!data.tocId) data.tocId = '1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g'
 
-  data.tocData = JSON.parse(getData(data.tocId, true))
+  data.tocData = JSON.parse(getData(data.tocId, false))
 
   if (data.tocData?.inlineObjects) {
     let obj = data.tocData.inlineObjects ? Object.values(data.tocData.inlineObjects).pop() : undefined;

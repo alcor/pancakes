@@ -79,7 +79,7 @@ main {
 }
 
 .heading {
-  scroll-margin: 24px;
+  scroll-margin-top: 24px;
 }
 
 .heading-container.collapsed,
@@ -88,18 +88,40 @@ main {
   cursor:pointer;
 }
 
+
+nav .heading-container > .heading-children > :first-child {
+  transition: margin-top 218ms cubic-bezier(0, 1, 1, 1);
+}
+nav .heading-container.collapsed > .heading-children > :first-child {
+    transition: margin-top 218ms cubic-bezier(1, 0, 1, 1);
+  margin-top:-120px;
+}
+
+
+nav .heading-children {
+  overflow:hidden;
+  transition: max-height 0s linear 0s; 
+  max-height:100vh;
+}
+
+nav .heading-container.collapsed .heading-children{
+  transition: max-height 0s linear 218ms;
+  max-height:0px;
+}
+
 nav .heading {
   line-height:24px;
   margin-top:8px;
 }
 
+nav .heading-container.collapsable >.heading-children,
 nav .heading-container.heading-3 >.heading-children,
 nav .heading-container.heading-4 >.heading-children,
 nav .heading-container.heading-5 >.heading-children,
 nav .heading-container.heading-6 >.heading-children {
   margin-left:18px;
 }
-.heading:before {
+.collapsable > .heading:before {
   content:'chevron_right';
   float:left;
   margin-left:-1em;
@@ -134,10 +156,6 @@ nav .heading-container.heading-6 >.heading-children {
 .title.heading:before {
   display:none;
 }
-.heading-container.collapsed .heading-children{
-  max-height:0px;
-  overflow:hidden;
-}
 
 img {
   max-width:100%;
@@ -166,7 +184,15 @@ main img {
   max-width:100%;
   min-width:10px;
   display:inline-block;
-  
+}
+
+.outofdate .doc-inner .img-container {
+  background-color: rgba(0,0,0,0.03);
+  border-radius: 6px;
+}
+
+.doc-inner .img-container.full-width {
+  max-width:var(--content-width);
 }
 
 .img-container.hero {
@@ -180,18 +206,14 @@ main img {
 
 .img-container.float-left {
   float:left;
-  margin: 1em 1em 1em 0;
+  margin: 0em 1em 1em 0;
 }
 
 .img-container.float-right {
   float:right;
-  margin: 1em 0em 1em 1em;
+  margin: 0em 0em 1em 1em;
 }
 
-.img-container.float-right {
-  display:block;
-  margin: 0em 1em 0em 1em;
-}
 
 .header {
   height:104px;
@@ -299,8 +321,14 @@ nav a.selected:hover {
 
 nav .toc-inner a.external-link,
 a.external-link {
-  cursor:alias;
+  cursor:pointer;
 }
+
+nav .toc-inner a.external-link:hover,
+a.external-link {
+  text-decoration:underline;
+}
+
 
 nav .toc-inner a.external-link:hover:before {
   content:'open_in_new';
@@ -320,6 +348,23 @@ nav .toc-inner a.external-link:hover:before {
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
   opacity:0.5;
+}
+
+
+.material-icon {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
 }
 
 main a,
@@ -377,7 +422,7 @@ hr { border:none; border-top: 0.5px solid currentColor; opacity:0.2;}
 nav .title {font-size: 22px; margin-bottom:20px;}
 nav .subtitle {font-size: 14px; opacity: 0.4}
 nav h1 { font-weight: 700; font-size:14px; margin:0;}
-nav h2 { font-weight: 400; font-style: oblique; font-size:14px; margin:0; opacity:0.4}
+nav h2 { font-weight: 400; font-style: oblique; font-size:14px; margin:0; color:rgba(0,0,0,0.5)}
 nav h3 { font-weight: 400; font-size:14px; margin:0;}
 nav h4 { font-weight: 400; font-size:14px; margin:0;}
 nav h5 { font-weight: 400; font-size:14px; margin:0;}
@@ -388,7 +433,7 @@ nav hr { margin: 4px -24px -4px -32px; opacity: 0.2;}
 
 nav p {
   margin: 0;
-  color:rgba(0,0,0,.54);
+  color:rgba(0,0,0,.33);
 }
 
 nav p a {
@@ -504,23 +549,23 @@ body.new #new {
 }
 
 div.doc-index {
-  right:-4px;
-  position:fixed;
+  right:0px;
+  position:sticky;
+  top:0px;
   background-color:white;
-  padding:12px 0;
+  padding:8px 0 8px 8px;
   max-width:128px;
   transition: max-width 200ms, opacity 200ms, right 200ms;
   overflow:hidden;
   text-overflow:ellipsis;
-  border-radius:4px;
-
+  border-radius:8px;
+  margin-top:4px;
   float:right;
 }
 
 div.doc-index:hover {
-  right:8px;
+  right:0px;
   max-width:240px;
-    box-shadow: 0 10px 20px rgb(0 0 0 / 8%), 0 0.5px 1px 0.5px rgb(0 0 0 / 26%);
 }
 
 div.doc-index:hover a{
@@ -531,6 +576,10 @@ div.doc-index:hover a{
 div.doc-index a.d1 {
   font-weight:bold;
 }
+div.doc-index a.d2 {
+
+}
+
 div.doc-index a {
   display:block;
   padding: 4px 24px 4px 24px;
@@ -547,8 +596,12 @@ div.doc-index a:hover {
   text-decoration:none;
 }
 
+.doc-index-link {
+  border-left:1px solid rgba(0,0,0,0.2);
+}
+
 .doc-index-link.selected {
-  background-color:#fafafa;
+  border-left:1px solid black;
 }
 
 .highlighted {
@@ -556,15 +609,69 @@ div.doc-index a:hover {
 }
 
 @media only screen and (max-width: 900px) {
-nav {
-  display:none;
-}
-main.content {
-  left:0;
-  width:100vw;
-}
+  nav,
+  .doc-index {
+    display:none;
+  }
+  main.content {
+    left:0;
+    width:100%;
+  }
+
+
+  .doc-inner .img-container.full-width {
+    max-width:100%
+  }
+  .img-container.float-left,
+  .img-container.float-right {
+    max-width:50%;
+  }
 
 }
+
+.page-footer {
+    bottom: 0;
+    margin-top:72px;
+    display: flex;
+    right: 0;
+    justify-content: space-between;
+    margin-bottom:-36px;
+}
+.page-button {
+  text-decoration:none;
+  color:currentColor;
+  flex-grow:1;
+  padding:1em 2em;
+  font-size:125%;
+}
+.page-button:not(:hover) label {
+  opacity:0.5;
+}
+.page-button:hover {
+  background:rgba(0,0,0,0.1);
+  text-decoration:none;
+}
+
+#prev-page {
+  margin-left:-2em;
+}
+
+#prev-page .material-icon {
+  float:left;
+  margin-left:-1.1em;
+}
+
+#next-page {
+  text-align:right;
+  margin-right:-2em;
+}
+
+#next-page .material-icon {
+  float:right;
+  margin-right:-1.1em;
+}
+
+
 </style>
 </head>
 <body>
@@ -613,6 +720,8 @@ const docsRE = /https:\/\/docs.google.com\/(?<type>document|spreadsheets|present
   let tocFavicon;
   let globalMode = window.preloadData.mode;
   let currentHeading = window.preloadData.heading
+  let nextPage;
+  let prevPage;
 
   let storage;
   try {
@@ -735,7 +844,7 @@ function cssForDoc(doc, isToc) {
 
   if (!isToc) {
     let docStyle = doc.documentStyle;
-    css.push(`.doc-inner {max-width:${docStyle.pageSize.width.magnitude - docStyle.marginLeft.magnitude - docStyle.marginRight.magnitude}pt;}`);
+    css.push(`.doc-inner {--content-width:${docStyle.pageSize.width.magnitude - docStyle.marginLeft.magnitude - docStyle.marginRight.magnitude}pt; max-width:var(--content-width);}`);
   }
 
   for (let info of doc.namedStyles?.styles) {
@@ -786,8 +895,6 @@ function elementForParagraph(p, doc) {
       let level = p.bullet.nestingLevel || 0;
       selector += ".bullet-" + level;
     };
-    if (p.table) console.log("p.table", p.table)
-
 
     if (style.shading && !doc.isToc) {
       let color = colorForObject(style.shading?.backgroundColor?.color?.rgbColor);
@@ -801,10 +908,15 @@ function elementForParagraph(p, doc) {
     if (p.paragraphStyle?.headingId) attrs.id = p.paragraphStyle.headingId;
 
     if (css.length) attrs.style = css.join(";");
-    return m(selector, attrs, 
-      p.positionedObjectIds?.map(o => elementForObject(doc.positionedObjects[o], doc)),
+
+    let paragraph = m(selector, attrs, 
       p.elements?.map(e => elementForElement(e, doc, style.headingId))
     )
+
+    if (p.positionedObjectIds) {
+      paragraph = m('div', {}, p.positionedObjectIds?.map(o => elementForObject(doc.positionedObjects[o], doc)), paragraph);
+    }
+    return paragraph;
 }
 
 function elementForElement(e, doc, headingId) {
@@ -1031,11 +1143,8 @@ function elementForBody(body, doc) {
           ul = item.el
         }
       }
-            console.log("bullet", {list, bulletStack, ul})
-
 
       if (!ul) {
-        console.log("listInfo", listInfo)
         ul = m(listInfo.glyphSymbol ? 'ul' : 'ol', {type: olMap[listInfo.glyphType]});
         (bulletStack.length ? bulletStack[bulletStack.length - 1].el : parent).appendChild(ul);
         bulletStack.push({el: ul, nestingLevel: nestingLevel, id: bullet.listId })     
@@ -1045,14 +1154,18 @@ function elementForBody(body, doc) {
 
     if (headingId) {
       if (depth >= 0) {
-        if (docIndexEl && depth <= 3 && el.innerText.trim().length) {
+        if (docIndexEl && depth <= 2 && el.innerText.trim().length) {
           docIndexEl.appendChild(m('a.doc-index-link.d' + depth, {href:"#" + headingId, id:"index-" + headingId}, el.innerText))
         }
         el.classList.add("heading")
         if (depth > 0) {
+
           let headingChildren = m('div.heading-children', {depth:depth, id:headingId + "-children"});   
           let containerClasses = ['div', 'heading-container'];
-          if (bullet) containerClasses.push('collapsed')
+          if (bullet) {
+            containerClasses.push('collapsable')
+            containerClasses.push('collapsed')
+          }
           containerClasses.push("heading-" +depth);
           el = m(containerClasses.join('.'), {id: headingId + "-container"}, el, headingChildren)
           headingStack.push({depth: depth, el: headingChildren})
@@ -1065,6 +1178,14 @@ function elementForBody(body, doc) {
 
   if (heroEl) {
     rootEl.classList.add('has-hero')
+  }
+
+  if (isRoot && (nextPage || prevPage)) {
+    let footer = m('div.page-footer', {}, 
+      prevPage ? m('a.page-button', {id: "prev-page", href: prevPage?.href}, m('label',{}, "Previous"), m('br'), m('div.material-icon',{},"chevron_left"), prevPage?.innerText) : null,
+      nextPage ? m('a.page-button', {id: "next-page", href: nextPage?.href}, m('label',{}, "Next"), m('br'), m('div.material-icon',{},"chevron_right"), nextPage?.innerText) : null
+    )
+    rootEl.appendChild(footer);
   }
 
   return [heroEl, docIndexEl, rootEl];
@@ -1094,6 +1215,8 @@ function renderDocument(docInfo, doc, isToc) {
     let contentEls = elementForBody(doc.body, doc, true);
     contentEls.forEach(el => { if (el) docEl.appendChild(el)})
   }
+
+  
 
 
   // Create CSS rules for document styles
@@ -1204,7 +1327,7 @@ document.addEventListener('scroll', (e) => {
   let headings = document.querySelectorAll(".doc-inner .heading");
   let indexes = document.querySelectorAll(".doc-index-link");
   for (let heading of Array.from(headings).reverse()) {
-      if (heading.offsetTop < window.pageYOffset + 100) {
+      if (heading.offsetTop < window.pageYOffset + 24) {
       scrollHeading = heading.id;
       break;
     }
@@ -1226,7 +1349,7 @@ document.addEventListener('click', function(e) {
   if (a) {
     let url = a.getAttribute('href');
     if (url) {
-      displayDoc(url, e.altKey, true, e.shiftKey)
+      displayDoc(url, e.altKey, true, e.shiftKey, a)
     }
     e.preventDefault();
     // e.stopPropogation();
@@ -1236,7 +1359,7 @@ document.addEventListener('click', function(e) {
       editToc(e);
     } else if (e.target.id) {
       let container = document.getElementById(e.target.id + "-container")
-      if (container) container.classList.toggle('collapsed')
+      if (container && container.classList.contains('collapsable')) container.classList.toggle('collapsed')
     }
 
   }
@@ -1291,22 +1414,34 @@ function fullscreen() {
   el.requestFullscreen();
 }
 
-function updateTocSelection(url) {
+function updateTocSelection(url, clickedLink) {
   let id = idForUrl(url); 
-  docId = id;
-  currentHeading = undefined;
+  if (docId != id) {
+    currentHeading = undefined;
+    docId = id;
+  }
 
+  if (!clickedLink?.closest('nav')) clickedLink = undefined;
   let links = document.querySelectorAll("nav a")
-  for (let link of links) {
-    link.classList.toggle('selected', link.id == id)
-    if (link.id == id) {
-      console.log("link", link)
+
+  if (!clickedLink) {
+    links.forEach(link => { 
+      if (!clickedLink && (link.id == id)) { clickedLink = link; }
+    })
+  }
+  
+  links.forEach((link, i) => {
+    link.classList.toggle('selected', link == clickedLink)
+    if (link == clickedLink) {
       docTitle = link.innerText
       while (link = link.parentNode.closest('.heading-container')) {
         link.classList.remove('collapsed');
       }
+      prevPage = links[i-1];
+      nextPage = links[i+1];
+      clickedLink = link;
     }
-  }
+  });
 }
 
 function urlIsEmbeddable(url) {
@@ -1317,7 +1452,7 @@ function urlIsEmbeddable(url) {
   return false;
 }
 
-function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = false) {
+function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = false, clickedLink) {
   console.debug("🖼 Displaying", url)
 
   if (url.startsWith("#")) return scrollToHeader(url.slice(1), true)
@@ -1328,7 +1463,7 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
 
   if (googleDoc) {
     if (googleDoc.id == docId) ignoreCache = true;
-    if (globalMode == 'edit' || url.endsWith("#")) editMode = true;
+    if (globalMode == 'edit' || url.endsWith("#edit")) editMode = true;
     if (editMode) {
       googleDoc.mode = 'edit';
     } else if (googleDoc.type == "document" && googleDoc.mode != "preview") {
@@ -1350,6 +1485,8 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
       console.debug("🌐 Opening Tab:", url)
       window.open(url, '_blank');
   } else {
+    updateTocSelection(url, clickedLink);
+
     let frame = document.getElementById('doc-frame');
     if (target == 'inline') {
       loadDocInline(googleDoc, false, ignoreCache);
@@ -1360,7 +1497,7 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
       frame.src = url;
       document.body.classList.add('frame');
     }
-    updateTocSelection(url, updateHistory);
+    
     if (updateHistory) {
       updateHistoryState()
     }
