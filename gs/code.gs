@@ -19,7 +19,7 @@ function doGet(e) {
 
   if (!data.tocId) data.tocId = '1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g'
 
-  data.tocData = JSON.parse(getData(data.tocId, false))
+  data.tocData = JSON.parse(getData(data.tocId, false, true))
 
   if (data.tocData?.inlineObjects) {
     let obj = data.tocData.inlineObjects ? Object.values(data.tocData.inlineObjects).pop() : undefined;
@@ -40,7 +40,7 @@ function doGet(e) {
 }
 
 // Cache file listing to reduce spreadsheet access
-function getData(docId, ignoreCache) {
+function getData(docId, ignoreCache, isToc) {
   let start = new Date().getTime();
   var cache = CacheService.getScriptCache();
 
@@ -79,6 +79,7 @@ function getData(docId, ignoreCache) {
       let base64 = Utilities.base64Encode(gzip.getBytes())
       cache.put(docId, base64, 30 * 60);
     } catch (e) {
+      // TODO: Redirect to preview version for large documents
       Logger.log(e);
       Logger.log(str.length);
     }

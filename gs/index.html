@@ -97,6 +97,14 @@ nav .heading-container.collapsed > .heading-children > :first-child {
   margin-top:-120px;
 }
 
+nav::-webkit-scrollbar {
+    background: transparent;
+    width: 4px;
+}
+
+nav::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+}
 
 nav .heading-children {
   overflow:hidden;
@@ -769,7 +777,7 @@ function loadDocInline(doc, isToc = false, ignoreCache = false) {
   }
 
   console.debug("⬇️ Fetching:", doc.id)
-  document.body.classList.add(hasOldData ? "outofdate" :"loading");
+  if (!isToc) document.body.classList.add(hasOldData ? "outofdate" :"loading");
   google.script.run
   .withFailureHandler((e) => console.log("ERROR", e))
   .withSuccessHandler(gotData.bind(null, doc, isToc)).getData(doc.id, ignoreCache);
@@ -1180,7 +1188,7 @@ function elementForBody(body, doc) {
     rootEl.classList.add('has-hero')
   }
 
-  if (isRoot && (nextPage || prevPage)) {
+  if (!doc.isToc && isRoot && (nextPage || prevPage)) {
     let footer = m('div.page-footer', {}, 
       prevPage ? m('a.page-button', {id: "prev-page", href: prevPage?.href}, m('label',{}, "Previous"), m('br'), m('div.material-icon',{},"chevron_left"), prevPage?.innerText) : null,
       nextPage ? m('a.page-button', {id: "next-page", href: nextPage?.href}, m('label',{}, "Next"), m('br'), m('div.material-icon',{},"chevron_right"), nextPage?.innerText) : null
@@ -1355,8 +1363,12 @@ document.addEventListener('click', function(e) {
     // e.stopPropogation();
     return false;
   } else {
-    if (e.target.classList.contains('title') && e.target.closest('nav') && (e.altKey || globalMode == 'edit')) {
-      editToc(e);
+    if (e.target.classList.contains('title') && e.target.closest('nav') ) {
+      if (e.shiftKey) {
+        reloadToc();
+      } else if (e.altKey || globalMode == 'edit') {
+        editToc(e);
+      }
     } else if (e.target.id) {
       let container = document.getElementById(e.target.id + "-container")
       if (container && container.classList.contains('collapsable')) container.classList.toggle('collapsed')
@@ -1384,6 +1396,11 @@ function editToc(e) {
   } else {
     displayDoc(url, true)
   }
+}
+
+function reloadToc() {
+  tocData = undefined
+  loadDocInline({id: tocId}, true, true)
 }
 
 
@@ -1527,7 +1544,7 @@ function updateHistoryState(replace = false) {
   path = path.join("/")
 
   
-  let title = tocData.title || "Docs"
+  let title = tocData?.title || "Docs"
 
   if (docTitle) title = docTitle + " - " + title
 
