@@ -55,10 +55,9 @@ function getData(docId, ignoreCache, isToc) {
     return cached; 
   }
 
-  // Logger.log("Fetching Doc " + docId  + " " + (new Date().getTime() - start))   
-
   try { 
     var doc = Docs.Documents.get(docId, {suggestionsViewMode: 'PREVIEW_WITHOUT_SUGGESTIONS'});
+    pruneContent(doc.body.content);
   } catch (e) {
     return JSON.stringify({error:e});
   }
@@ -89,7 +88,24 @@ function getData(docId, ignoreCache, isToc) {
   // Logger.log("Sending " + docId  + " " + (new Date().getTime() - start) )   
   return str; 
 }
-
+function pruneContent(content) {
+  content.forEach(c => {
+    delete c.startIndex;
+    delete c.endIndex;
+    c.elements?.forEach(e => pruneContent(e));
+    if (c.table) {
+      c.table.tableRows.forEach(tr => {
+        delete tr.startIndex;
+        delete tr.endIndex;
+        tr.tableCells.forEach(td => {
+          delete td.startIndex;
+          delete td.endIndex;
+          pruneContent(td.content);
+        })
+      })
+    }
+  })
+}
 function test() {
   Logger.log(getData("1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g"))
 }
