@@ -651,50 +651,6 @@ div.doc-index a:hover {
   background-color:#fef7e0;
 }
 
-@media only screen and (max-width: 900px) {
-
-  body:not(show-index) .doc-index {
-    display:none;
-  }
-
-  
-  .mobile-header {
-    display:block;
-  }
-
-  body.show-nav .content {
-    transform: translateX(240px);
-  }
-  body:not(.show-nav) nav {
-    transform: translateX(-240px);
-  }
-
-  body .content,
-  body nav {
-    transition:transform 200ms ease;
-  }
-  
-  .content {
-    left:0;
-    width:100%;
-  }
-
-  .doc-inner .img-container.full-width {
-    max-width:100%
-  }
-  .img-container.float-left,
-  .img-container.float-right {
-    max-width:50%;
-  }
-
-  body.loading::before {
-      left: auto;
-      right: 12px;
-      top:12px;
-  }
-
-}
-
 .page-footer {
     bottom: 0;
     margin-top:72px;
@@ -744,6 +700,7 @@ div.doc-index a:hover {
   z-index: 100;
   line-height: 44px;
   display:none;
+  cursor:default;
 }
 
 .mobile-header .title {
@@ -760,6 +717,57 @@ div.doc-index a:hover {
 
 body.show-nav #nav-toggle {
   background-color:transparent;
+}
+
+.doc-title {
+    line-height: 42px;
+    color: rgba(0,0,0,0.5);
+    padding-left: 28px;
+    display:none;
+    cursor:default;
+}
+
+@media only screen and (max-width: 900px) {
+
+  body:not(show-index) .doc-index {
+    display:none;
+  }
+  
+  .mobile-header,
+  .doc-title {
+    display:block;
+  }
+
+  body.show-nav .content {
+    transform: translateX(240px);
+  }
+  body:not(.show-nav) nav {
+    transform: translateX(-240px);
+  }
+
+  body .content,
+  body nav {
+    transition:transform 200ms ease;
+  }
+  
+  .content {
+    left:0;
+    width:100%;
+  }
+
+  .doc-inner .img-container.full-width {
+    max-width:100%
+  }
+  .img-container.float-left,
+  .img-container.float-right {
+    max-width:50%;
+  }
+
+  body.loading::before {
+      left: auto;
+      right: 12px;
+      top:12px;
+  }
 }
 
 </style>
@@ -1305,7 +1313,8 @@ function elementForBody(body, doc) {
     rootEl.appendChild(footer);
   }
 
-  return [heroEl, docIndexEl, rootEl];
+  let titleEl = doc.isToc ? null : m('div.doc-title', {}, doc.title)
+  return [heroEl, titleEl, docIndexEl, rootEl];
 }
 
 function lazyLoadImages(images, i = 0) {
@@ -1518,8 +1527,12 @@ function handleTouchMove(evt) {
 
 document.addEventListener('click', function(e) {
   document.getElementById('menu-button').classList.remove('open');
+    console.log("aaba", e.target)
 
-  if (e.target.closest('main')) {
+  if (e.target.closest('.doc-title')) {
+    console.log("aab")
+    toggleNav();
+  } else if (e.target.closest('main')) {
     toggleNav(false);
   }
   let a = e.target.closest('a');
