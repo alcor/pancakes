@@ -127,3 +127,7 @@ function storeShortcut(title, id) {
   props.setProperty("ID:" + id, title);
 }
 
+function listStorage() {
+  var props = PropertiesService.getScriptProperties();
+  Logger.log(props.getKeys());
+}

@@ -171,11 +171,18 @@ img {
 
 .iframe-container {
   position: relative;
-
+  overflow:hidden;
 }
 iframe.embed {
   border:none;
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+}
+
+iframe.embed.type-presentation {
+  width: calc(100% + 1px);
+  height: calc(100% + 3px);
+  margin-left: 0px;
+  margin-top: -1px;
 }
 
 nav img {
@@ -207,6 +214,61 @@ main img {
   min-width:10px;
   display:inline-block;
 }
+.doc-inner .img-container:not(.lightbox):hover {
+  opacity:0.9;
+  cursor:zoom-in;
+  
+}
+
+
+.doc-inner .img-container.lightbox {
+  z-index:inherit !important;
+}
+.doc-inner .img-container.lightbox .img {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    padding-top: 0 !important;
+    background-size: contain;
+    background-position: center center;
+    animation: scale-up 200ms both ease-out;
+    background-color: rgba(0,0,0,0.1);
+    cursor:zoom-out;
+}
+
+.lightout .img {
+  animation: scale-down 200ms forwards ease-out;
+} 
+
+@keyframes scale-up {
+  0%   { 
+    background-color: rgba(128,128,128,0.0);
+    transform: scale(0.9); 
+        backdrop-filter:blur(0px);
+  }
+  50% {
+    background-color: rgba(128,128,128,0.0);
+    transform: scale(1.0); 
+  }
+  100% {
+    transform: scale(1.0); 
+    background-color: rgba(128,128,128,0.1);
+    backdrop-filter:blur(10px);
+  }
+}
+@keyframes scale-down {
+  0%   { 
+    transform: translateY(-20px) scale(1.2); 
+
+  }
+  100% {
+    transform: translateY(0) scale(1.0); 
+  }
+}
+
 
 .outofdate .doc-inner .img-container {
   background-color: rgba(0,0,0,0.03);
@@ -796,7 +858,17 @@ body.show-nav #nav-toggle {
 <main id="doc" class="content"></main>
 <iframe id="doc-frame" class="content" name="frame" src=""></iframe>
 </body>
-
+<script type="text/javascript">
+    $.featherlight.defaults.openSpeed = 100;
+    $.featherlight.defaults.closeSpeed = 100;
+    $.featherlight.defaults.variant = "lightbox";
+    $('a.gallery').featherlightGallery({
+        previousIcon: '&#9664;',     /* Code that is used as previous icon */
+        nextIcon: '&#9654;',         /* Code that is used as next icon */
+        galleryFadeIn: 100,          /* fadeIn speed when slide is loaded */
+        galleryFadeOut: 300          /* fadeOut speed before slide is loaded */
+    });
+</script>
 <script>
   window.preloadData = JSON.parse('<?= data ?>');
 </script>
@@ -807,13 +879,13 @@ body.show-nav #nav-toggle {
       sub: "https://www.figma.com/embed?embed_host=astra&url=$&"},
     { name: "YouTube",
       re: /https:\/\/(youtu.be|www.youtube.com)\/(watch\?v=)?(?<id>\w+)([?&](?<params>t=.*)?)?/,
-      sub: "https://www.youtube.com/embed/$<id>?autoplay=1&$<params>"},
+      sub: "https://www.youtube.com/embed/$<id>?autoplay=0&$<params>"},
     { name: "Drive",
       re: /https:\/\/drive.google.com\/file\/d\/(?<id>[\w-]+)(\/.*)?/,
       sub: "https://drive.google.com/file/d/$<id>/preview"},
   ]
 
-const docsRE = /https:\/\/docs.google.com\/(?<type>document|spreadsheets|presentation)\/d\/(?<id>[^\/]*)\/?(?<mode>[^#]*)(#(?<hash>(heading=)?(?<heading>[^=]*).*))?/
+  const docsRE = /https:\/\/docs.google.com\/(?<type>document|spreadsheets|presentation|drawings)\/d\/(?<id>[^\/]*)\/?(?<mode>[^#]*)(#(?<hash>(heading=)?(?<heading>[^=]*).*))?/
   const figmaRE = /^https:\/\/([^\/\.]+\.)?figma.com\/(?<mode>file|proto)\/(?<id>[0-9a-zA-Z]{22,128})(?:\/.*)?$/
 
   let tocId = window.preloadData.tocId;
@@ -954,19 +1026,25 @@ function cssForDoc(doc, isToc) {
   for (let info of doc.namedStyles?.styles) {
     let type = info.namedStyleType;
     let selector = typeToSelector(type);
-    
+    let textStyle = info.textStyle;
+    let paragraphStyle = info.paragraphStyle;
     let declarations = [];
-    if (info.textStyle.fontSize) {
-      declarations.push(`font-size:${styleForMeasurement(info.textStyle.fontSize)}`);
+    if (textStyle.fontSize) {
+      declarations.push(`font-size:${styleForMeasurement(textStyle.fontSize)}`);
     }
-    if (info.textStyle.weightedFontFamily?.fontFamily) {
-      declarations.push(styleForFont(info.textStyle.weightedFontFamily));
-      maybeLoadFont(info.textStyle.weightedFontFamily.fontFamily);
+
+    if (paragraphStyle.spaceBelow?.magnitude) declarations.push("margin-block-end:" + styleForMeasurement(paragraphStyle.spaceBelow));
+    if (paragraphStyle.spaceAbove?.magnitude) declarations.push("margin-block-start:" + styleForMeasurement(paragraphStyle.spaceAbove));
+    if (paragraphStyle.lineSpacing) declarations.push("line-height:" +  paragraphStyle.lineSpacing * 1.2 + "%");
+
+    if (textStyle.weightedFontFamily?.fontFamily) {
+      declarations.push(styleForFont(textStyle.weightedFontFamily));
+      maybeLoadFont(textStyle.weightedFontFamily.fontFamily);
     }
-    if (info.textStyle.foregroundColor) {
-      declarations.push(`color:${colorForObject(info.textStyle.foregroundColor.color.rgbColor)}`);
+    if (textStyle.foregroundColor) {
+      declarations.push(`color:${colorForObject(textStyle.foregroundColor.color.rgbColor)}`);
     }
-    if (info.textStyle.bold) {
+    if (textStyle.bold) {
       declarations.push(`font-weight:bold;`);
     }
     if (declarations.length) {
@@ -1007,6 +1085,7 @@ function elementForParagraph(p, doc) {
 
     if (style.spaceBelow) css.push("margin-block-end:" + styleForMeasurement(style.spaceBelow));
     if (style.spaceAbove) css.push("margin-block-start:" + styleForMeasurement(style.spaceAbove));
+    if (style.lineSpacing) css.push("line-height:" + style.lineSpacing * 1.2 + "%");
 
     if (style.alignment) css.push("text-align:" + style.alignment);
     if (p.paragraphStyle?.headingId) attrs.id = p.paragraphStyle.headingId;
@@ -1050,6 +1129,7 @@ function elementForElement(e, doc, headingId) {
     if (runStyle.italic) el = m('i',{}, el);
     if (runStyle.bold) el = m('b',{}, el);
     if (runStyle.strikethrough) el = m('strike',{}, el);
+    if (runStyle.fontSize) css.push("font-size:" + styleForMeasurement(runStyle.fontSize))
     if (runStyle.baselineOffset == "SUPERSCRIPT") el = m('sub',{}, el) ;
     if (runStyle.baselineOffset == "SUBSCRIPT") el = m('sup',{}, el) ;
 
@@ -1156,9 +1236,15 @@ function elementForObject(info, doc, element) {
 
   let link = element?.textStyle?.link?.url;
   if (link) {
-    link = rewriteUrl(link) || link
+    let googleDoc = docInfoForUrl(link); 
+
+    link = rewriteUrlForInline(link) || link
     containerStyles.push(`height:${h}pt`)
-    img =  m('div.iframe-container', {style:styles.join(";")}, m('iframe.embed', {src: link}));
+    let selector = 'iframe.embed';
+    if (googleDoc?.type) selector += ".type-" + googleDoc.type;
+    let iframe = m(selector, {src: link});
+    iframe.setAttribute('allowFullScreen', '')
+    img =  m('div.iframe-container', {style:styles.join(";")}, iframe);
   } 
   
   return m(containerClass.join("."), {style:containerStyles.join(";")}, img )
@@ -1193,7 +1279,7 @@ function elementForTable(table, doc) {
     })
     return m('tr', {style:'height:' + styleForMeasurement(minHeight)}, cells);
   })
-  return m('table', {}, rows);
+  return m('div.table-container', {}, m('table', {}, rows));
 }
 
 function expandDocUrl(url) {
@@ -1313,7 +1399,7 @@ function elementForBody(body, doc) {
     rootEl.appendChild(footer);
   }
 
-  let titleEl = doc.isToc ? null : m('div.doc-title', {}, doc.title)
+  let titleEl = (doc.isToc || !isRoot) ? null : m('div.doc-title', {}, doc.title)
   return [heroEl, titleEl, docIndexEl, rootEl];
 }
 
@@ -1527,10 +1613,8 @@ function handleTouchMove(evt) {
 
 document.addEventListener('click', function(e) {
   document.getElementById('menu-button').classList.remove('open');
-    console.log("aaba", e.target)
 
   if (e.target.closest('.doc-title')) {
-    console.log("aab")
     toggleNav();
   } else if (e.target.closest('main')) {
     toggleNav(false);
@@ -1548,6 +1632,16 @@ document.addEventListener('click', function(e) {
     }
     return false;
   } else {
+    let img = e.target.closest('.img-container');
+    if (img) {
+      if (img.classList.contains('lightbox') && img.closest("main")) {
+        img.classList.add('lightout');
+        img.classList.remove('lightbox');
+        setTimeout(() => img.classList.remove('lightout'), 200)
+      } else {
+        img.classList.add('lightbox');
+      }
+    }
     if (e.target.classList.contains('title') && e.target.closest('nav') ) {
       if (e.shiftKey) {
         reloadToc();
@@ -1604,7 +1698,7 @@ function editMode(e) {
   let url = docId;
   if (!url.startsWith("http")) url = urlForDocInfo({id:docId})
 
-  if (isMobile) {
+  if (isMobile()) {
     return window.open(url, '_blank');
   }
   
@@ -1757,6 +1851,16 @@ function updateHistoryState(replace = false) {
   window.top.postMessage({path, title}, '*')
 }
 
+
+function rewriteUrlForInline(url) {
+  let googleDoc = docInfoForUrl(url);  
+  if (googleDoc) {
+    googleDoc.mode = 'preview?rm=minimal';
+    return urlForDocInfo(googleDoc)
+  } else {
+    return rewriteUrl(url)
+  }
+}
 function rewriteUrl(url) {
   for (let rewrite of URL_REWRITES) {
     let match =  url.match(rewrite.re)
@@ -1810,4 +1914,5 @@ if (!tocId.length) {
 }
 
 </script>
+
 </html>
