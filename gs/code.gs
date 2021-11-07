@@ -19,21 +19,25 @@ function doGet(e) {
 
   if (!data.tocId) data.tocId = '1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g'
 
-  data.tocData = JSON.parse(getData(data.tocId, false, true))
+  if (data.tocId != '0') {
+    data.tocData = JSON.parse(getData(data.tocId, false, true))
+  }
 
   if (data.tocData?.inlineObjects) {
     let obj = data.tocData.inlineObjects ? Object.values(data.tocData.inlineObjects).pop() : undefined;
     favicon = obj.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri + "?.png";
   }
-  
+ 
   if (data.docId && !data.docId.startsWith("http")) {
     data.docData = JSON.parse(getData(data.docId))
   }
 
+  let title = data.tocData?.title || data.docData?.title; 
+
   template.data = JSON.stringify(data);
 
   return template.evaluate()
-    .setTitle(data.tocData.title || "Document Sidebar")
+    .setTitle(title || "Document Sidebar")
     .setFaviconUrl(favicon || `https://ssl.gstatic.com/dynamite/emoji/png/32/emoji_${favmoji || 'u1f4da'}.png`)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

@@ -73,6 +73,19 @@ nav {
   background-clip: border-box;
 }
 
+nav span {
+  opacity:0.6667;
+}
+nav a span,
+nav .title span,
+nav .collapsed > .heading span {
+  opacity:1.0;
+}
+
+nav .heading span {
+  pointer-events:none;
+}
+
 
 main {
   min-height:100vh;
@@ -119,21 +132,22 @@ nav .heading-container.collapsed .heading-children{
 
 nav .heading {
   line-height:24px;
-  margin-top:8px;
 }
 
-nav .heading-container.collapsable >.heading-children,
+/* nav .heading-container.collapsable >.heading-children,
 nav .heading-container.heading-3 >.heading-children,
 nav .heading-container.heading-4 >.heading-children,
 nav .heading-container.heading-5 >.heading-children,
 nav .heading-container.heading-6 >.heading-children {
   margin-left:18px;
-}
+} */
+
 .collapsable > .heading:before {
   content:'chevron_right';
   float:left;
+  position:absolute;
   margin-left:-1em;
-  opacity:0.0;
+  opacity:0.2;
   transition:transform 200ms;
   transform: rotate(90deg);
   font-family: 'Material Icons';
@@ -151,13 +165,20 @@ nav .heading-container.heading-6 >.heading-children {
   -webkit-font-smoothing: antialiased;
 }
 
-.heading-container.collapsed .heading:before {
-    transform: rotate(0deg);
-    opacity:1.0;
+.collapsed .heading-children .heading:before {
+  display:none;
 }
 
-.heading:hover:before {
-  opacity:0.4
+.heading-container.collapsed .heading:before {
+  transform: rotate(0deg);
+}
+
+.heading-container:hover > .heading:before {
+  opacity:1.0
+}
+
+.heading-container:hover .heading:not(.collapsed):before {
+  opacity:0.6
 
 }
 
@@ -381,6 +402,12 @@ nav .toc-inner a {
   cursor:default;
 }
 
+nav .toc-inner .subtitle:nth-child(1) a {
+  padding:0;
+  margin-top:-30px;
+  text-decoration:none;
+} 
+
 
 
 nav .toc-inner .heading a,
@@ -392,7 +419,9 @@ nav a {
   overflow:hidden;
   white-space:nowrap;
   text-overflow:ellipsis;
+  color:currentColor;
 }
+
 nav a:hover {
   background-color:rgba(0,0,0,0.03);
 }
@@ -526,27 +555,33 @@ hr { border:none; border-top: 0.5px solid currentColor; opacity:0.2;}
 
 nav .title {font-size: 22px; margin-bottom:20px;}
 nav .subtitle {font-size: 14px; opacity: 0.4}
-nav h1 { font-weight: 700; font-size:14px; margin:0;}
-nav h2 { font-weight: 400; font-style: oblique; font-size:14px; margin:0; color:rgba(0,0,0,0.5)}
+nav h1 { font-weight: 700; font-size:14px; margin:0; margin-top:8px;}
+nav h2 { font-weight: 400; font-size:14px; margin:0; margin-top:8px;}
 nav h3 { font-weight: 400; font-size:14px; margin:0;}
 nav h4 { font-weight: 400; font-size:14px; margin:0;}
 nav h5 { font-weight: 400; font-size:14px; margin:0;}
 nav h6 { font-weight: 400; font-size:14px; margin:0;}
 nav hr { margin: 4px -24px -4px -32px; opacity: 0.2;}
 
-
+nav  h4.heading,
+nav  h5.heading,
+nav  h6.heading {
+  margin-top:0;
+  margin-bottom:0;
+}
 
 nav p {
   margin: 0;
-  color:rgba(0,0,0,.33);
+
+  color: currentColor;
 }
 
 nav p a {
-  color: rgb(97, 97, 97);
+  color: currentColor;
 }
 
 nav p a:hover {
-  color: rgb(0, 0, 0);
+  opacity:1.0;
 }
 
 td {
@@ -591,7 +626,7 @@ div.menu-button.open .material-icons {
 }
 
 .menu-item:hover {
-  background-color:#fafafa
+  background-color:#fafafa;
 }
 .menu-button.open .menu-contents {
   display:block;
@@ -655,11 +690,10 @@ body.new #new {
 
 div.doc-index {
   right:0px;
-  position:sticky;
-  top:0px;
-  background-color:white;
+  position:fixed;
+  background-color:transparent;
   padding:8px 0 8px 8px;
-  max-width:128px;
+  max-width:16px;
   transition: max-width 200ms, opacity 200ms, right 200ms;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -669,6 +703,8 @@ div.doc-index {
 }
 
 div.doc-index:hover {
+    background-color:white;
+
   right:0px;
   max-width:240px;
 }
@@ -702,11 +738,11 @@ div.doc-index a:hover {
 }
 
 .doc-index-link {
-  border-left:1px solid rgba(0,0,0,0.2);
+  border-left:3px solid rgba(0,0,0,0.2);
 }
 
 .doc-index-link.selected {
-  border-left:1px solid black;
+  border-left:3px solid black;
 }
 
 .highlighted {
@@ -789,6 +825,15 @@ body.show-nav #nav-toggle {
     cursor:default;
 }
 
+
+body.no-nav nav{
+  display:none;
+}
+body.no-nav .content {
+  left:0;
+  width:100%
+}
+
 @media only screen and (max-width: 900px) {
 
   body:not(show-index) .doc-index {
@@ -858,17 +903,6 @@ body.show-nav #nav-toggle {
 <main id="doc" class="content"></main>
 <iframe id="doc-frame" class="content" name="frame" src=""></iframe>
 </body>
-<script type="text/javascript">
-    $.featherlight.defaults.openSpeed = 100;
-    $.featherlight.defaults.closeSpeed = 100;
-    $.featherlight.defaults.variant = "lightbox";
-    $('a.gallery').featherlightGallery({
-        previousIcon: '&#9664;',     /* Code that is used as previous icon */
-        nextIcon: '&#9654;',         /* Code that is used as next icon */
-        galleryFadeIn: 100,          /* fadeIn speed when slide is loaded */
-        galleryFadeOut: 300          /* fadeOut speed before slide is loaded */
-    });
-</script>
 <script>
   window.preloadData = JSON.parse('<?= data ?>');
 </script>
@@ -885,7 +919,7 @@ body.show-nav #nav-toggle {
       sub: "https://drive.google.com/file/d/$<id>/preview"},
   ]
 
-  const docsRE = /https:\/\/docs.google.com\/(?<type>document|spreadsheets|presentation|drawings)\/d\/(?<id>[^\/]*)\/?(?<mode>[^#]*)(#(?<hash>(heading=)?(?<heading>[^=]*).*))?/
+  const docsRE = /https:\/\/docs.google.com\/(?<type>document|spreadsheets|presentation|drawings)(?:\/u\/\d)?\/d\/(?<id>[^\/]*)\/?(?<mode>[^#]*)(#(?<hash>(heading=)?(?<heading>[^=]*).*))?/
   const figmaRE = /^https:\/\/([^\/\.]+\.)?figma.com\/(?<mode>file|proto)\/(?<id>[0-9a-zA-Z]{22,128})(?:\/.*)?$/
 
   let tocId = window.preloadData.tocId;
@@ -907,7 +941,7 @@ body.show-nav #nav-toggle {
   }
 
   if (docData && docData != {} && !docData.error) {
-    storage?.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:docData}));
+    storeDocData(doc.id, docData)
   }
 
   window.top.postMessage({ready:true}, '*')
@@ -963,7 +997,17 @@ function gotData(doc, isToc, response) {
   document.body.classList.remove("loading");
   document.body.classList.remove("outofdate");
   if (!isToc && !data.error) {
-    storage?.setItem(doc.id, JSON.stringify({ts:new Date().getTime(), val:data}));
+    storeDocData(doc.id, data)
+  }
+}
+
+function storeDocData(id, data) {
+  try {
+    storage?.setItem(id, JSON.stringify({ts:new Date().getTime(), val:data}));
+  }
+  catch (e) {
+    console.log("Local Storage is full, clearing.");
+    storage?.clear(); 
   }
 }
 
@@ -1010,13 +1054,34 @@ function colorForObject(rgb) {
   if (rgb) return `rgb(${(rgb.red || 0) * 255},${(rgb.green || 0)  * 255},${(rgb.blue || 0)  * 255})`;
 }
 
+function colorIsDark(hex) {
+  let rgb = hex.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i
+             ,(m, r, g, b) => '#' + r + r + g + g + b + b)
+    .substring(1).match(/.{2}/g)
+    .map(x => parseInt(x, 16));
+  if (rgb) return (0.2126*rgb[0] + 0.7152*rgb[1] + 0.0722*rgb[2]) < 0.6;
+}
+
+
 // CSS Creation
 
 function cssForDoc(doc, isToc) {
   let css = []
 
-  let color = colorForObject(doc.documentStyle?.background?.color?.color?.rgbColor)
-  if (color) css.push((isToc ? 'nav' : 'main')  + `{background-color:${color}}`);
+  let backgroundColor = colorForObject(doc.documentStyle?.background?.color?.color?.rgbColor)
+  if (doc.config?.backgroundColor) backgroundColor = doc.config?.backgroundColor;
+  
+  if (backgroundColor) {
+    css.push((isToc ? 'nav' : 'main')  + `{background-color:${backgroundColor}}`);
+  }
+  if (doc.config?.textColor) {
+    css.push((isToc ? 'nav' : 'main')  + `{color:${doc.config?.textColor}}`);
+  } 
+  
+  if (doc.config?.style) {
+    css.push(doc.config?.style);
+  }
+
 
   if (!isToc) {
     let docStyle = doc.documentStyle;
@@ -1087,6 +1152,8 @@ function elementForParagraph(p, doc) {
     if (style.spaceAbove) css.push("margin-block-start:" + styleForMeasurement(style.spaceAbove));
     if (style.lineSpacing) css.push("line-height:" + style.lineSpacing * 1.2 + "%");
 
+
+    if (doc.isToc && style.indentStart?.magnitude) css.push("padding-left: calc(var(--padding-left) + " + style.indentStart.magnitude/2 + "pt");
     if (style.alignment) css.push("text-align:" + style.alignment);
     if (p.paragraphStyle?.headingId) attrs.id = p.paragraphStyle.headingId;
 
@@ -1163,9 +1230,7 @@ function elementForElement(e, doc, headingId) {
       el = m('a.heading-link', {href: "#" + runStyle.link.headingId, style: css.join(";") }, el);
     }
   } else {
-    if (css.length) {
       el = m('span', {style: css.join(";")}, el);
-    }
   }
   return el;
 }
@@ -1305,7 +1370,11 @@ function elementForBody(body, doc) {
   let rootEl = isRoot ? m('div.' + docType + '-inner', {}) : m('div', {})
   let docIndexEl = doc.isToc || !isRoot ? undefined : m('div.doc-index', {})
 
-  for (const c of body.content) {
+  let content = body.content;
+
+  if (doc.config) content.pop(); 
+
+  for (const c of content) {
     let el;
     
     if (c.paragraph) {
@@ -1386,6 +1455,7 @@ function elementForBody(body, doc) {
 
     if (el) parent.appendChild(el)
   }
+  
 
   if (heroEl) {
     rootEl.classList.add('has-hero')
@@ -1410,13 +1480,33 @@ function lazyLoadImages(images, i = 0) {
   }
 }
 
+function configForDoc(doc) {
+  try {
+    let content = doc.body.content;
+    let lastLine = content[content.length - 1].paragraph;
+    let text = lastLine.elements.reduce((str, el) => el.textRun.content ? str + el.textRun.content : str, '')
+    text = text.replace(/[“”]/g, '"').trim();
+    if (text.length && text.startsWith("{")) return JSON.parse(text);
+  } catch (e) {
+    console.log("Config error", e, text)
+  }
+  return undefined
+}
+
 function renderDocument(docInfo, doc, isToc) {
   
   // Create elements for document content
   if (isToc) doc.isToc = true;
 
+  doc.config = configForDoc(doc);
+
+  if (isToc && doc.config?.mode) {
+    console.log("Setting global mode to", doc.config.mode)
+    globalMode = doc.config.mode;
+  }
+
   let docType = doc.isToc ? 'toc' : 'doc';
-  console.log("📐 Rendering", docType, [doc.documentId, doc])
+  console.log("📐 Rendering", docType, [doc.documentId, doc, doc.config])
 
   let rootEl = m('div.' + docType + '-inner', {})
 
@@ -1433,6 +1523,7 @@ function renderDocument(docInfo, doc, isToc) {
       ));
   } else {
     let contentEls = elementForBody(doc.body, doc, true);
+    //if (doc.config) contentEls.pop();
     contentEls.forEach(el => { if (el) docEl.appendChild(el)})
   }
 
@@ -1545,19 +1636,19 @@ function submitNewToc() {
 }
 
 document.addEventListener('scroll', (e) => {
-  var scrollHeading = undefined
   let headings = document.querySelectorAll(".doc-inner .heading");
   let indexes = document.querySelectorAll(".doc-index-link");
+  var scrollHeading = headings[0]?.id;
   for (let heading of Array.from(headings).reverse()) {
-      if (heading.offsetTop < window.pageYOffset + 24) {
+      if (heading.offsetTop < window.pageYOffset + 24
+        && document.getElementById("index-" + heading.id)) {
       scrollHeading = heading.id;
       break;
     }
   }
   
-  
   if (currentHeading != scrollHeading) {
-      currentHeading = scrollHeading
+    currentHeading = scrollHeading
     updateHistoryState(true);
     let index = document.getElementById("index-" + currentHeading);
     indexes.forEach(i => i.classList.remove("selected"))
@@ -1610,6 +1701,14 @@ function handleTouchMove(evt) {
     yDown = null;                                             
 };
 
+document.addEventListener("keydown", onKeyDown, false);
+
+function onKeyDown(e)   {
+  if (e.key == "F5") {
+    reloadAll();
+  }
+}
+
 
 document.addEventListener('click', function(e) {
   document.getElementById('menu-button').classList.remove('open');
@@ -1628,6 +1727,11 @@ document.addEventListener('click', function(e) {
       toggleNav(false);
       let ignoreCache = docId == docInfoForUrl(url)?.id;  
 
+      if (e.metaKey) {
+        console.debug("🌐 Opening Tab:", url)
+        window.open(url, '_blank');
+        return false;
+      }
       displayDoc(url, e.altKey, true, ignoreCache || e.shiftKey, a)
     }
     return false;
@@ -1677,9 +1781,20 @@ function editToc(e) {
   }
 }
 
+function reloadAll() {
+  reloadToc();
+  reloadDoc();
+}
+
+function reloadDoc() {
+  console.info("🔄 Reloading Document")
+  docData = undefined
+  ocInline({id: docId}, false, true)
+}
 function reloadToc() {
+  console.info("🔄 Reloading Table of Contents")
   tocData = undefined
-  loadDocInline({id: tocId}, true, true)
+  ocInline({id: tocId}, true, true)
 }
 
 function toggleNav(value) {
@@ -1698,6 +1813,9 @@ function editMode(e) {
   let url = docId;
   if (!url.startsWith("http")) url = urlForDocInfo({id:docId})
 
+  if (e.shiftKey) {
+    reloadToc();
+  }
   if (isMobile()) {
     return window.open(url, '_blank');
   }
@@ -1758,6 +1876,7 @@ function updateTocSelection(url, clickedLink) {
 
 function urlIsEmbeddable(url) {
   if (url.indexOf('docs.google.com') > 0) return true;
+  if (url.endsWith("##")) return false;
   for (let rewrite of URL_REWRITES) {
     if (url.match(rewrite.re)) return true;
   }
@@ -1772,6 +1891,7 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
   let target = 'frame';
   let googleDoc = docInfoForUrl(url);  
 
+  let originalURL = url;
 
   if (googleDoc) {
     if (globalMode == 'edit' || url.endsWith("#edit")) editMode = true;
@@ -1785,7 +1905,7 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
     url = urlForDocInfo(googleDoc)
   } else {
     let rewrite = rewriteUrl(url);
-    if (rewrite) {
+    if (rewrite && !url.endsWith("##")) {
       url = rewrite;
     } else {
       target = 'blank';
@@ -1794,9 +1914,9 @@ function displayDoc(url, editMode = false, updateHistory = true, ignoreCache = f
 
   if (target == 'blank') {
       console.debug("🌐 Opening Tab:", url)
-      window.open(url, '_blank');
+      window.open(originalURL, '_blank');
   } else {
-    updateTocSelection(url, clickedLink);
+    updateTocSelection(originalURL, clickedLink);
 
     let frame = document.getElementById('doc-frame');
     if (target == 'inline') {
@@ -1907,7 +2027,10 @@ google.script.history.setChangeHandler(function (e) {
   displayDoc(expandDocUrl(state.doc))
 });
 
-if (!tocId.length) {
+if (tocId == '0') {
+  loadDocInline({id: docId}, false);
+  document.body.classList.toggle('no-nav', true);
+} else if (!tocId.length) {
   loadDocInline({id: tocId}, true)
 } else {
   renderDocument({id: tocId}, tocData, true)
