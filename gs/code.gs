@@ -110,11 +110,12 @@ function pruneContent(content) {
     }
   })
 }
+
 function test() {
   Logger.log(getData("1IsZAZfp6E9Z88kGsDH3Ycd3LZRd5S3Rkln_idKhec9g"))
 }
-function getUrl() { return ScriptApp.getService().getUrl(); }
 
+function getUrl() { return ScriptApp.getService().getUrl(); }
 
 function fetchShortcut(query) {
   var props = PropertiesService.getScriptProperties();

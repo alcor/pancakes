@@ -1484,11 +1484,13 @@ function configForDoc(doc) {
   try {
     let content = doc.body.content;
     let lastLine = content[content.length - 1].paragraph;
-    let text = lastLine.elements.reduce((str, el) => el.textRun.content ? str + el.textRun.content : str, '')
-    text = text.replace(/[“”]/g, '"').trim();
-    if (text.length && text.startsWith("{")) return JSON.parse(text);
+    let text = lastLine.elements.reduce((str, el) => el.textRun?.content ? str + el.textRun.content : str, '')
+    if (text) {
+      text = text.replace(/[“”]/g, '"').trim();
+      if (text.length && text.startsWith("{")) return JSON.parse(text);
+    }
   } catch (e) {
-    console.log("Config error", e, text)
+    console.debug("Config error", e)
   }
   return undefined
 }
